@@ -1,0 +1,205 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: sport-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-123456}
+      MYSQL_USER: ${MYSQL_USER:-sport_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-123456}
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./docker/mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - sport-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-123456}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: ./api-gateway/Dockerfile
+    container_name: sport-gateway
+    restart: on-failure
+    ports:
+      - "8080:8080"
+    environment:
+      - SERVER_PORT=8080
+      - USER_SERVICE_URL=http://user-service:8081
+      - COURT_SERVICE_URL=http://court-service:8082
+      - BOOKING_SERVICE_URL=http://booking-service:8083
+      - PAYMENT_SERVICE_URL=http://payment-service:8084
+      - NOTIFICATION_SERVICE_URL=http://notification-service:8085
+      - REVIEW_SERVICE_URL=http://review-service:8086
+      - FRONTEND_URL=http://localhost:5173
+      - JWT_SECRET=${JWT_SECRET:-404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY:-sport-internal-secret-key-2026-very-secure}
+    depends_on:
+      - user-service
+      - court-service
+      - booking-service
+      - payment-service
+      - notification-service
+      - review-service
+    networks:
+      - sport-network
+
+  user-service:
+    build:
+      context: .
+      dockerfile: ./user-service/Dockerfile
+    container_name: sport-user-service
+    restart: on-failure
+    expose:
+      - "8081"
+    environment:
+      - SERVER_PORT=8081
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/user_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      - SPRING_DATASOURCE_USERNAME=${MYSQL_USER:-sport_user}
+      - SPRING_DATASOURCE_PASSWORD=${MYSQL_PASSWORD:-123456}
+      - JWT_SECRET=${JWT_SECRET:-404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY:-sport-internal-secret-key-2026-very-secure}
+      - SMTP_HOST=${SMTP_HOST:-smtp.gmail.com}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASS=${SMTP_PASS:-}
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - sport-network
+
+  court-service:
+    build:
+      context: .
+      dockerfile: ./court-service/Dockerfile
+    container_name: sport-court-service
+    restart: on-failure
+    expose:
+      - "8082"
+    environment:
+      - SERVER_PORT=8082
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/court_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      - SPRING_DATASOURCE_USERNAME=${MYSQL_USER:-sport_user}
+      - SPRING_DATASOURCE_PASSWORD=${MYSQL_PASSWORD:-123456}
+      - JWT_SECRET=${JWT_SECRET:-404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY:-sport-internal-secret-key-2026-very-secure}
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - sport-network
+
+  booking-service:
+    build:
+      context: .
+      dockerfile: ./booking-service/Dockerfile
+    container_name: sport-booking-service
+    restart: on-failure
+    expose:
+      - "8083"
+    environment:
+      - SERVER_PORT=8083
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/booking_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      - SPRING_DATASOURCE_USERNAME=${MYSQL_USER:-sport_user}
+      - SPRING_DATASOURCE_PASSWORD=${MYSQL_PASSWORD:-123456}
+      - COURT_SERVICE_URL=http://court-service:8082
+      - PAYMENT_SERVICE_URL=http://payment-service:8084
+      - NOTIFICATION_SERVICE_URL=http://notification-service:8085
+      - JWT_SECRET=${JWT_SECRET:-404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY:-sport-internal-secret-key-2026-very-secure}
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - sport-network
+
+  payment-service:
+    build:
+      context: .
+      dockerfile: ./payment-service/Dockerfile
+    container_name: sport-payment-service
+    restart: on-failure
+    expose:
+      - "8084"
+    environment:
+      - SERVER_PORT=8084
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/payment_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      - SPRING_DATASOURCE_USERNAME=${MYSQL_USER:-sport_user}
+      - SPRING_DATASOURCE_PASSWORD=${MYSQL_PASSWORD:-123456}
+      - BOOKING_SERVICE_URL=http://booking-service:8083
+      - JWT_SECRET=${JWT_SECRET:-404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY:-sport-internal-secret-key-2026-very-secure}
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - sport-network
+
+  notification-service:
+    build:
+      context: .
+      dockerfile: ./notification-service/Dockerfile
+    container_name: sport-notification-service
+    restart: on-failure
+    expose:
+      - "8085"
+    environment:
+      - SERVER_PORT=8085
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/notification_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      - SPRING_DATASOURCE_USERNAME=${MYSQL_USER:-sport_user}
+      - SPRING_DATASOURCE_PASSWORD=${MYSQL_PASSWORD:-123456}
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY:-sport-internal-secret-key-2026-very-secure}
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - sport-network
+
+  review-service:
+    build:
+      context: .
+      dockerfile: ./review-service/Dockerfile
+    container_name: sport-review-service
+    restart: on-failure
+    expose:
+      - "8086"
+    environment:
+      - SERVER_PORT=8086
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/review_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      - SPRING_DATASOURCE_USERNAME=${MYSQL_USER:-sport_user}
+      - SPRING_DATASOURCE_PASSWORD=${MYSQL_PASSWORD:-123456}
+      - BOOKING_SERVICE_URL=http://booking-service:8083
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY:-sport-internal-secret-key-2026-very-secure}
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - sport-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: sport-frontend
+    restart: on-failure
+    ports:
+      - "5173:80"
+    depends_on:
+      - api-gateway
+    networks:
+      - sport-network
+
+networks:
+  sport-network:
+    driver: bridge
+
+volumes:
+  mysql-data:
