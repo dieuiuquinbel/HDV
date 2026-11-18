@@ -27,7 +27,7 @@ public class GiaoDichThanhToan {
     @Column(name = "booking_id", nullable = false, unique = true)
     private Long bookingId;
 
-    @Column(name = "customer_id", nullable = false)
+    @Column(name = "customer_id")
     private Long customerId;
 
     @Version

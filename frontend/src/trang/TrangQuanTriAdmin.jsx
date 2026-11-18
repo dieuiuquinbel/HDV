@@ -992,7 +992,7 @@ export default function TrangQuanTriAdmin({ nguoiDung }) {
               <div className={`p-5 rounded-2xl border-l-4 border-l-emerald-500 border ${isDark ? 'bg-slate-900/60 border-slate-800' : 'bg-white border-slate-200'}`}>
                 <div className="text-xs font-bold text-slate-400 uppercase">TỶ LỆ ĐÁP ỨNG THÀNH CÔNG</div>
                 <div className="text-2xl font-black text-emerald-500 mt-1">98.5%</div>
-                <p className="text-xs text-slate-500 mt-1">Khách đánh giá 5 sao sau khi hoàn tất</p>
+                <p className="text-xs text-slate-500 mt-1">Hoàn tất phục vụ chuẩn thời gian quy định</p>
               </div>
 
               <div className={`p-5 rounded-2xl border-l-4 border-l-sky-500 border ${isDark ? 'bg-slate-900/60 border-slate-800' : 'bg-white border-slate-200'}`}>

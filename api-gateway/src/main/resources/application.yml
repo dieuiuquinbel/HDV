@@ -12,7 +12,6 @@ gateway:
   booking-service-url: ${BOOKING_SERVICE_URL:http://localhost:8083}
   payment-service-url: ${PAYMENT_SERVICE_URL:http://localhost:8084}
   notification-service-url: ${NOTIFICATION_SERVICE_URL:http://localhost:8085}
-  review-service-url: ${REVIEW_SERVICE_URL:http://localhost:8086}
 
 jwt:
   secret: ${JWT_SECRET:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}

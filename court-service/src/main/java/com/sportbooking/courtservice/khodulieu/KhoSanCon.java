@@ -19,5 +19,7 @@ public interface KhoSanCon extends JpaRepository<SanCon, Long> {
     List<SanCon> findByVenueIdAndStatus(Long venueId, TrangThaiSanCon status);
     List<SanCon> findBySportTypeIdAndStatus(Long sportTypeId, TrangThaiSanCon status);
     boolean existsByVenueIdAndName(Long venueId, String name);
+    Optional<SanCon> findByVenueIdAndName(Long venueId, String name);
+    Optional<SanCon> findByCourtCode(String courtCode);
     Optional<SanCon> findByIdAndVenueId(Long id, Long venueId);
 }

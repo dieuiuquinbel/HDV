@@ -47,33 +47,41 @@ export default function NutGoiDichVuFAB({ user }) {
       return;
     }
 
-    const homNay = new Date().toISOString().slice(0, 10);
-    apiDichVu.layDonDatCuaToi({ page: 0, size: 20 })
-      .then(res => {
-        const ds = res.data?.content || [];
-        // Loc cac don da check-in (COMPLETED hoac CONFIRMED trong ngay hom nay)
-        const sanHopLe = ds.filter(d => {
-          const laHomNay = d.bookingDate === homNay;
-          const daCheckIn = d.status === 'COMPLETED' || d.status === 'CONFIRMED';
-          return laHomNay && daCheckIn;
-        });
+    const kiemTraDonCheckIn = () => {
+      const homNay = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date());
+      apiDichVu.layDonDatCuaToi({ page: 0, size: 20 })
+        .then(res => {
+          const ds = res.data?.content || [];
+          // Chỉ chấp nhận đơn có trạng thái CHECKED_IN trong ngày hôm nay (khách đã check-in thật tại quầy)
+          const sanHopLe = ds.filter(d => {
+            const laHomNay = d.bookingDate === homNay;
+            const daCheckInTaiSan = d.status === 'CHECKED_IN';
+            return laHomNay && daCheckInTaiSan;
+          });
 
-        if (sanHopLe.length > 0) {
-          const activeDon = sanHopLe[0];
-          setSanDangChoi(activeDon);
-          setDanhSachSanCuaToi(sanHopLe);
-          setSanNhanHang(`Sân Con #${activeDon.courtId} • Cơ Sở ${activeDon.venueId || 1}`);
-        } else {
+          if (sanHopLe.length > 0) {
+            const activeDon = sanHopLe[0];
+            setSanDangChoi(activeDon);
+            setDanhSachSanCuaToi(sanHopLe);
+            const tenSan = activeDon.courtName ? ` (${activeDon.courtName})` : '';
+            const tenCoSo = activeDon.venueName || (activeDon.venueId ? `Cơ Sở ${activeDon.venueId}` : 'Cơ Sở SportKing');
+            setSanNhanHang(`Sân #${activeDon.courtId}${tenSan} • ${tenCoSo}`);
+          } else {
+            setSanDangChoi(null);
+            setDanhSachSanCuaToi([]);
+            setSanNhanHang('');
+          }
+        })
+        .catch(() => {
           setSanDangChoi(null);
           setDanhSachSanCuaToi([]);
           setSanNhanHang('');
-        }
-      })
-      .catch(() => {
-        setSanDangChoi(null);
-        setDanhSachSanCuaToi([]);
-        setSanNhanHang('');
-      });
+        });
+    };
+
+    kiemTraDonCheckIn();
+    const interval = setInterval(kiemTraDonCheckIn, 12000);
+    return () => clearInterval(interval);
   }, [user, moKiosk]);
 
   // Tong so mon trong gio

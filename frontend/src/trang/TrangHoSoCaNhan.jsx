@@ -14,7 +14,6 @@ import {
   Ticket, 
   Coins, 
   CreditCard, 
-  Star, 
   LogOut, 
   CheckCircle2, 
   QrCode, 
@@ -37,7 +36,6 @@ const MUC_THANH_BEN = [
   { id: 'wallet', label: 'Kho voucher', coChamDo: true },
   { id: 'membership', label: 'Hạng thành viên' },
   { id: 'refunds', label: 'Hoàn tiền' },
-  { id: 'reviews', label: 'Đánh giá' },
 ];
 
 export default function TrangHoSoCaNhan({ user, onDangXuat }) {
@@ -517,19 +515,6 @@ export default function TrangHoSoCaNhan({ user, onDangXuat }) {
                     <span className="text-xs text-slate-500 font-semibold mt-1 block">500+ điểm</span>
                     <p className="text-xs text-slate-600 mt-2">• Ưu tiên giữ giờ cao điểm</p>
                   </div>
-                </div>
-              </div>
-            )}
-
-            {/* TAB 6: DANH GIA */}
-            {tabHienTai === 'reviews' && (
-              <div className="bg-white rounded-[26px] p-6 sm:p-8 border border-slate-200/80 shadow-sm text-left">
-                <div className="mb-6">
-                  <h3 className="text-lg font-black text-slate-900">Đánh Giá Của Bạn</h3>
-                  <p className="text-xs text-slate-400 font-semibold">Nhận xét giúp các vận động viên khác lựa chọn sân đấu tốt hơn.</p>
-                </div>
-                <div className="p-8 text-center text-slate-400 text-xs font-semibold">
-                  Chưa có đánh giá nào. Sau khi hoàn tất trận đấu, bạn có thể vào đánh giá cụm sân.
                 </div>
               </div>
             )}

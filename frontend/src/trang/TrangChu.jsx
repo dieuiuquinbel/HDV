@@ -15,7 +15,6 @@ import {
   Search, 
   MapPin, 
   Trophy, 
-  Star, 
   Calendar, 
   Sparkles, 
   ArrowRight, 
@@ -703,10 +702,6 @@ export default function TrangChu({ user }) {
                         <span className={`px-2.5 py-1 text-white rounded-full text-xs font-black shadow-md ${mauBadge}`}>
                           ⚡ {tenBadge}
                         </span>
-                      </div>
-                      <div className="absolute bottom-3 left-3 bg-white/95 backdrop-blur-md px-2.5 py-1 rounded-full text-xs font-bold text-slate-800 flex items-center gap-1 shadow-sm">
-                        <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                        <span>4.9</span>
                       </div>
                     </div>
 

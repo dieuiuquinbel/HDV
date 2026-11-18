@@ -36,6 +36,12 @@ public class SanCon {
     @Column(nullable = false)
     private String name;
 
+    @Column(name = "court_code", length = 50)
+    private String courtCode;
+
+    @Column(name = "image_url")
+    private String imageUrl;
+
     @Column(nullable = false)
     @Builder.Default
     private Integer capacity = 4;

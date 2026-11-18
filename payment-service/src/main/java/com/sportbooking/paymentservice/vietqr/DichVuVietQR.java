@@ -37,6 +37,7 @@ public class DichVuVietQR {
 
     private final CauHinhNganHangTechcombank cauHinhTechcombank;
     private final KhoGiaoDichThanhToan khoGiaoDichThanhToan;
+    private final com.sportbooking.paymentservice.dichvu.DichVuGoiDatSanNoiBo dichVuGoiDatSanNoiBo;
 
     /**
      * Tao thong tin VietQR day du cho don thanh toan
@@ -48,8 +49,23 @@ public class DichVuVietQR {
         GiaoDichThanhToan giaoDich = khoGiaoDichThanhToan.findById(paymentId)
                 .orElseThrow(() -> new LoiNghiepVu(HttpStatus.NOT_FOUND, "PAYMENT_NOT_FOUND", "Không tìm thấy giao dịch thanh toán."));
 
-        if (!"ADMIN".equals(userRole) && !giaoDich.getCustomerId().equals(userId)) {
-            throw new LoiNghiepVu(HttpStatus.FORBIDDEN, "FORBIDDEN", "Bạn không có quyền xem giao dịch thanh toán này.");
+        if (!"ADMIN".equals(userRole)) {
+            Long ownerId = giaoDich.getCustomerId();
+            if (ownerId == null || ownerId <= 0) {
+                try {
+                    var bk = dichVuGoiDatSanNoiBo.layThongTinThanhToan(giaoDich.getBookingId());
+                    if (bk != null && bk.getCustomerId() != null && bk.getCustomerId() > 0) {
+                        ownerId = bk.getCustomerId();
+                        giaoDich.setCustomerId(ownerId);
+                        khoGiaoDichThanhToan.save(giaoDich);
+                    }
+                } catch (Exception ex) {
+                    log.warn("Khong the khoi phuc customerId cho VietQR tu booking #{}: {}", giaoDich.getBookingId(), ex.getMessage());
+                }
+            }
+            if (ownerId == null || ownerId <= 0 || !ownerId.equals(userId)) {
+                throw new LoiNghiepVu(HttpStatus.FORBIDDEN, "FORBIDDEN", "Bạn không có quyền xem giao dịch thanh toán này.");
+            }
         }
 
         String bankBin = cauHinhTechcombank.getBankBin();

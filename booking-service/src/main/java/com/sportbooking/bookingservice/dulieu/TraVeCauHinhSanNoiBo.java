@@ -17,6 +17,7 @@ public class TraVeCauHinhSanNoiBo {
     private String courtName;
     private String courtStatus;
     private Long venueId;
+    private String venueName;
     private Long ownerId;
     private String venueStatus;
     private BigDecimal basePrice;

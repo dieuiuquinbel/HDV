@@ -12,7 +12,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { 
   MapPin, 
-  Star, 
   Calendar, 
   Clock, 
   ShieldCheck, 
@@ -109,6 +108,7 @@ export default function TrangChiTietSan({ user: propUser }) {
 
   // Xác định quy mô từ URL param (với football là 5, 7 hoặc 11)
   const sizeParam = searchParams.get('size') || (maMon === 'FOOTBALL' ? '7' : 'default');
+  const courtCodeParam = searchParams.get('courtCode') || '';
 
   // Danh sách các biến thể sân chuẩn cho môn & quy mô này (3 - 4 thẻ chuẩn, không nhân bản lộn xộn)
   const danhSachSanBienThe = useMemo(() => {
@@ -132,9 +132,17 @@ export default function TrangChiTietSan({ user: propUser }) {
 
     // Luôn hiển thị đúng số lượng thẻ mẫu chuẩn (3-4 thẻ), gán ID duy nhất và giá từ backend
     return templates.map((tpl, idx) => {
-      const realCourt = matchingBackendCourts.length > 0
-        ? matchingBackendCourts[idx % matchingBackendCourts.length]
-        : null;
+      // Tìm sân thực tế khớp courtCode hoặc code danh mục hoặc theo vị trí
+      let realCourt = null;
+      if (courtCodeParam) {
+        realCourt = matchingBackendCourts.find(c => c.courtCode === courtCodeParam || (c.name && c.name.includes(courtCodeParam)));
+      }
+      if (!realCourt && tpl.code) {
+        realCourt = matchingBackendCourts.find(c => c.courtCode?.includes(tpl.code) || c.configType?.includes(tpl.code));
+      }
+      if (!realCourt && matchingBackendCourts.length > 0) {
+        realCourt = matchingBackendCourts[idx % matchingBackendCourts.length];
+      }
 
       // Số lượng sân ngẫu nhiên 3, 4, 5 sân theo từng loại
       const counts = [5, 4, 3, 5];
@@ -143,22 +151,42 @@ export default function TrangChiTietSan({ user: propUser }) {
       return {
         ...tpl,
         id: tpl.id, // ID duy nhất của từng loại sân (101, 102, 103, 104) để không bao giờ bị trùng check
+        courtCode: realCourt?.courtCode || tpl.code || courtCodeParam,
         realCourtId: realCourt ? realCourt.id : tpl.id,
         price: realCourt && Number(realCourt.basePrice) > 0 ? Number(realCourt.basePrice) : tpl.price,
         availableCount
       };
     });
-  }, [maMon, sizeParam, backendCourts, venueIdNum]);
+  }, [maMon, sizeParam, backendCourts, venueIdNum, courtCodeParam]);
 
-  // State chọn sân con cụ thể (mặc định là sân đầu tiên)
-  const [selectedCourt, setSelectedCourt] = useState(() => danhSachSanBienThe[0]);
+  const [hinhThucThiDau, setHinhThucThiDau] = useState('Đôi (2v2)');
+
+  // State chọn sân con cụ thể (ưu tiên khớp courtCode từ URL nếu có)
+  const [selectedCourt, setSelectedCourt] = useState(() => {
+    if (courtCodeParam) {
+      const found = danhSachSanBienThe.find(c => 
+        c.courtCode === courtCodeParam || c.code === courtCodeParam || (c.name && c.name.includes(courtCodeParam))
+      );
+      if (found) return found;
+    }
+    return danhSachSanBienThe[0];
+  });
 
   // Cập nhật khi danh sách biến thể thay đổi
   useEffect(() => {
     if (danhSachSanBienThe && danhSachSanBienThe.length > 0) {
+      if (courtCodeParam) {
+        const found = danhSachSanBienThe.find(c => 
+          c.courtCode === courtCodeParam || c.code === courtCodeParam || (c.name && c.name.includes(courtCodeParam))
+        );
+        if (found) {
+          setSelectedCourt(found);
+          return;
+        }
+      }
       setSelectedCourt(danhSachSanBienThe[0]);
     }
-  }, [danhSachSanBienThe]);
+  }, [danhSachSanBienThe, courtCodeParam]);
 
   // State tiện ích kèm theo
   const [selectedAddons, setSelectedAddons] = useState([]);
@@ -171,7 +199,10 @@ export default function TrangChiTietSan({ user: propUser }) {
     const hopLe = DANH_SACH_KHUNG_GIO.find(s => !kiemTraGioQuaKhu(homNay, s.value));
     return hopLe ? hopLe.value : '18:00:00';
   });
-  const [slotCount, setSlotCount] = useState(1);
+  const [durationMinutes, setDurationMinutes] = useState(60);
+  const [previewGia, setPreviewGia] = useState(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState(null);
 
   // Tự động điều chỉnh giờ bắt đầu sang khung giờ tương lai khả dụng khi người dùng đổi ngày
   useEffect(() => {
@@ -191,9 +222,8 @@ export default function TrangChiTietSan({ user: propUser }) {
   ]);
   const [selectedVoucher, setSelectedVoucher] = useState('CHAOBANMOI');
 
-  // Khung giờ khả dụng & Đánh giá sân từ Backend
+  // Khung giờ khả dụng từ Backend
   const [khungGioKhaDung, setKhungGioKhaDung] = useState([]);
-  const [ratingSummary, setRatingSummary] = useState({ averageRating: 0.0, totalReviews: 0 });
 
   // Tải danh sách voucher thật từ Database
   useEffect(() => {
@@ -214,26 +244,11 @@ export default function TrangChiTietSan({ user: propUser }) {
       .catch(() => {});
   }, []);
 
-  // Tải lịch trống khả dụng và tổng quan đánh giá của sân con đang chọn
+  // Tải lịch trống khả dụng của sân con đang chọn
   useEffect(() => {
     const courtId = selectedCourt?.realCourtId || selectedCourt?.id;
     if (!courtId) return;
 
-    // 1. Tải rating thật
-    apiDichVu.layTongQuanRating(courtId)
-      .then(res => {
-        if (res.data) {
-          setRatingSummary({
-            averageRating: res.data.averageRating || 0.0,
-            totalReviews: res.data.totalReviews || 0
-          });
-        }
-      })
-      .catch(() => {
-        setRatingSummary({ averageRating: 0.0, totalReviews: 0 });
-      });
-
-    // 2. Tải lịch khả dụng theo ngày
     if (selectedDate) {
       apiDichVu.layKhungGioKhaDung(courtId, selectedDate)
         .then(res => {
@@ -244,6 +259,53 @@ export default function TrangChiTietSan({ user: propUser }) {
         });
     }
   }, [selectedCourt, selectedDate]);
+
+  // Gọi API tính báo giá Realtime từ Backend Booking Service (chuẩn xác 100% về tiền & voucher & giờ đóng/mở)
+  useEffect(() => {
+    const courtId = selectedCourt?.realCourtId || selectedCourt?.id;
+    if (!courtId || !selectedDate || !startSlot || !durationMinutes) {
+      setPreviewGia(null);
+      setPreviewError(null);
+      return;
+    }
+
+    let cancel = false;
+    // Ngay khi đổi lựa chọn: vô hiệu hóa báo giá cũ để tránh race condition & hiển thị sai tiền
+    setPreviewGia(null);
+    setPreviewError(null);
+    setPreviewLoading(true);
+
+    const slotFormatted = startSlot.length === 5 ? `${startSlot}:00` : startSlot;
+
+    apiDichVu.tinhBaoGiaSan({
+      courtId,
+      bookingDate: selectedDate,
+      startSlot: slotFormatted,
+      durationMinutes: Number(durationMinutes),
+      voucherCode: selectedVoucher || null
+    })
+      .then(res => {
+        if (!cancel && res.data) {
+          setPreviewGia(res.data);
+          setPreviewError(null);
+        }
+      })
+      .catch(err => {
+        if (!cancel) {
+          console.warn('Lỗi gọi preview báo giá từ backend:', err);
+          const msg = err.response?.data?.message || 'Khung giờ này không khả dụng hoặc vượt quá giới hạn.';
+          setPreviewError(msg);
+          setPreviewGia(null);
+        }
+      })
+      .finally(() => {
+        if (!cancel) setPreviewLoading(false);
+      });
+
+    return () => {
+      cancel = true;
+    };
+  }, [selectedCourt?.realCourtId, selectedCourt?.id, selectedDate, startSlot, durationMinutes, selectedVoucher]);
 
   // Trạng thái submit & hết hạn phiên
   const [submitting, setSubmitting] = useState(false);
@@ -264,40 +326,46 @@ export default function TrangChiTietSan({ user: propUser }) {
     }
   };
 
-  // Giờ đóng cửa là 22:30. Tính thời lượng tối đa cho phép dựa trên giờ bắt đầu
-  const gioDongCuaPhut = 22 * 60 + 30; // 22:30 = 1350 phút
-  const thoiLuongToiDaGio = useMemo(() => {
+  // Giờ đóng cửa lấy động từ Backend (hoặc fallback 22:30). Tính thời lượng tối đa cho phép
+  const gioDongCuaStr = previewGia?.closeTime || '22:30:00';
+  const gioDongCuaPhut = useMemo(() => {
+    const [h, m] = gioDongCuaStr.split(':').map(Number);
+    return (isNaN(h) ? 22 : h) * 60 + (isNaN(m) ? 30 : m);
+  }, [gioDongCuaStr]);
+
+  const thoiLuongToiDaPhut = useMemo(() => {
     const [h, m] = (startSlot || '18:00:00').split(':').map(Number);
-    const gioBatDauPhut = h * 60 + (m || 0);
+    const gioBatDauPhut = (isNaN(h) ? 18 : h) * 60 + (isNaN(m) ? 0 : m);
     const phutConLai = gioDongCuaPhut - gioBatDauPhut;
-    return Math.max(1, Math.min(12, Math.floor(phutConLai / 60)));
-  }, [startSlot]);
+    return Math.max(30, Math.min(720, phutConLai));
+  }, [startSlot, gioDongCuaPhut]);
 
-  // Tự động hạ slotCount nếu vượt quá giờ đóng cửa
+  // Tự động hạ durationMinutes nếu vượt quá giờ đóng cửa
   useEffect(() => {
-    if (slotCount > thoiLuongToiDaGio) {
-      setSlotCount(thoiLuongToiDaGio);
+    if (durationMinutes > thoiLuongToiDaPhut) {
+      setDurationMinutes(thoiLuongToiDaPhut);
     }
-  }, [thoiLuongToiDaGio, slotCount]);
+  }, [thoiLuongToiDaPhut, durationMinutes]);
 
-  // Tính toán tiền sân realtime chuẩn theo logic Backend:
-  // - Tính theo block 30 phút
-  // - Áp dụng quy tắc giờ vàng 17:00 - 21:00 phụ thu 20%
-  const donGiaSan = selectedCourt?.price || 300000;
+  // Tính toán tiền sân: Ưu tiên dữ liệu tính giá từ Backend preview, fallback nếu chưa tải xong
+  const donGiaSan = previewGia?.basePrice != null ? Number(previewGia.basePrice) : (selectedCourt?.price || 300000);
+  
   const tongTienSan = useMemo(() => {
+    if (previewGia?.totalCourtPrice != null) {
+      return Number(previewGia.totalCourtPrice);
+    }
     let tong = 0;
     const [hGoc, mGoc] = (startSlot || '18:00:00').split(':').map(Number);
-    const numBlocks = slotCount * 2;
+    const numBlocks = Math.round(durationMinutes / 30);
     for (let i = 0; i < numBlocks; i++) {
       const phut = hGoc * 60 + (mGoc || 0) + i * 30;
       const blockHour = Math.floor(phut / 60);
-      // Khung giờ vàng 17:00 - 21:00
       const isPeak = (blockHour >= 17 && blockHour < 21);
       const hourly = isPeak ? donGiaSan * 1.2 : donGiaSan;
       tong += Math.round(hourly / 2);
     }
     return tong;
-  }, [donGiaSan, startSlot, slotCount]);
+  }, [previewGia?.totalCourtPrice, donGiaSan, startSlot, durationMinutes]);
 
   const tongTienDichVu = useMemo(() => {
     return selectedAddons.reduce((sum, addonId) => {
@@ -306,8 +374,11 @@ export default function TrangChiTietSan({ user: propUser }) {
     }, 0);
   }, [selectedAddons, danhSachDichVu]);
 
-  // Voucher chỉ áp dụng giảm trừ trên tiền thuê sân (không giảm trên đồ ăn nước uống)
+  // Tiền giảm voucher: Ưu tiên backend preview
   const tienGiam = useMemo(() => {
+    if (previewGia?.discountAmount != null) {
+      return Number(previewGia.discountAmount);
+    }
     if (!selectedVoucher) return 0;
     const v = vouchers.find(x => x.code === selectedVoucher);
     if (!v) return 0;
@@ -322,18 +393,33 @@ export default function TrangChiTietSan({ user: propUser }) {
       return Math.min(v.discountAmount, tongTienSan);
     }
     return 0;
-  }, [selectedVoucher, vouchers, tongTienSan]);
+  }, [previewGia?.discountAmount, selectedVoucher, vouchers, tongTienSan]);
 
-  // Tiền thanh toán giữ sân online (khớp hoàn toàn với đơn Backend)
-  const tongThanhToan = Math.max(0, tongTienSan - tienGiam);
+  // Tiền thanh toán giữ sân online (khớp 100% với backend)
+  const tongThanhToan = previewGia?.finalAmount != null ? Number(previewGia.finalAmount) : Math.max(0, tongTienSan - tienGiam);
 
-  // Giờ kết thúc
+  // Giờ bắt đầu và kết thúc
   const gioBatDauHienThi = startSlot.slice(0, 5);
   const gioKetThucHienThi = useMemo(() => {
-    const gioGoc = parseInt(startSlot.split(':')[0], 10);
-    const gioMoi = gioGoc + slotCount;
-    return `${String(gioMoi).padStart(2, '0')}:00`;
-  }, [startSlot, slotCount]);
+    if (previewGia?.endSlot) {
+      return previewGia.endSlot.slice(0, 5);
+    }
+    const [h, m] = (startSlot || '18:00:00').split(':').map(Number);
+    const endMinutes = h * 60 + (m || 0) + durationMinutes;
+    const endH = Math.floor(endMinutes / 60);
+    const endM = endMinutes % 60;
+    return `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`;
+  }, [previewGia?.endSlot, startSlot, durationMinutes]);
+
+  // Hiển thị thời lượng chữ
+  const thoiLuongHienThi = useMemo(() => {
+    if (durationMinutes % 60 === 0) {
+      return `${durationMinutes / 60} tiếng`;
+    }
+    const h = Math.floor(durationMinutes / 60);
+    const m = durationMinutes % 60;
+    return h > 0 ? `${h}h${m}p` : `${m} phút`;
+  }, [durationMinutes]);
 
   // Tên bộ môn tiếng Việt
   const tenMonTiengViet = useMemo(() => {
@@ -375,6 +461,27 @@ export default function TrangChiTietSan({ user: propUser }) {
         return;
       }
 
+      if (previewLoading) {
+        setErrorMsg('Hệ thống đang tính báo giá chính xác. Vui lòng chờ 1-2 giây rồi thử lại.');
+        return;
+      }
+
+      if (previewError) {
+        setErrorMsg(`Không thể đặt sân: ${previewError}`);
+        return;
+      }
+
+      if (!previewGia) {
+        setErrorMsg('Vui lòng đợi hệ thống cập nhật bảng báo giá hợp lệ.');
+        return;
+      }
+
+      const targetCourtId = selectedCourt.realCourtId || selectedCourt.id;
+      if (previewGia.courtId !== targetCourtId || previewGia.bookingDate !== selectedDate || previewGia.durationMinutes !== Number(durationMinutes)) {
+        setErrorMsg('Báo giá chưa đồng bộ với lựa chọn mới. Vui lòng đợi trong giây lát để hệ thống cập nhật.');
+        return;
+      }
+
       // Kiểm tra đặt sân cách ít nhất 15 phút nếu đặt cho ngày hôm nay
       const homNay = layNgayTheoOffset(0);
       if (selectedDate === homNay) {
@@ -390,18 +497,20 @@ export default function TrangChiTietSan({ user: propUser }) {
 
       // Lưu thông tin đơn đặt tạm vào localStorage để trang Thanh Toán lấy
       const donDatTam = {
-        venueId: venueIdNum,
+        venueId: previewGia?.venueId || venueIdNum,
         venueName: coSoHienTai.tenDayDu,
         venueAddress: coSoHienTai.diaChi,
         sportCode: maMon,
         sportName: tenMonTiengViet,
         courtId: selectedCourt.realCourtId || selectedCourt.id,
-        courtName: selectedCourt.name,
+        courtName: previewGia?.courtName || selectedCourt.name,
         surface: selectedCourt.surface,
+        playFormat: ['BADMINTON', 'TENNIS'].includes(maMon) ? hinhThucThiDau : (maMon === 'FOOTBALL' ? `Sân ${sizeParam} người` : 'Tiêu chuẩn'),
         bookingDate: selectedDate,
         startTime: `${gioBatDauHienThi}:00`,
         endTime: `${gioKetThucHienThi}:00`,
-        durationHours: slotCount,
+        durationMinutes: durationMinutes,
+        durationHours: Number((durationMinutes / 60).toFixed(1)),
         courtPrice: donGiaSan,
         totalCourtPrice: tongTienSan,
         addons: selectedAddons.map(id => danhSachDichVu.find(d => d.id === id)).filter(Boolean),
@@ -414,13 +523,12 @@ export default function TrangChiTietSan({ user: propUser }) {
       localStorage.setItem('esportking_current_booking', JSON.stringify(donDatTam));
 
       // Đặt chính xác vào sân con khách đã chọn (không tự ý đổi sang sân khác)
-      const targetCourtId = selectedCourt.realCourtId || selectedCourt.id;
-
       const payloadApi = {
         courtId: targetCourtId,
         bookingDate: selectedDate,
         startSlot: `${gioBatDauHienThi}:00`,
-        slotCount: Number(slotCount),
+        durationMinutes: Number(durationMinutes),
+        slotCount: Math.ceil(durationMinutes / 60),
         voucherCode: selectedVoucher || null
       };
       const idempotencyKey = `bk_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
@@ -518,21 +626,6 @@ export default function TrangChiTietSan({ user: propUser }) {
                   <Phone className="w-3.5 h-3.5 text-brand-600" />
                   Hotline đặt sân: {coSoHienTai.hotline}
                 </span>
-              </div>
-            </div>
-
-            {/* Đánh giá & Trạng thái */}
-            <div className="flex items-center gap-3">
-              <div className="bg-amber-50 border border-amber-200 px-3.5 py-1.5 rounded-2xl flex items-center gap-2">
-                <Star className={`w-4 h-4 ${ratingSummary.totalReviews > 0 ? 'fill-amber-400 text-amber-400' : 'text-slate-300'}`} />
-                <div>
-                  <span className="text-xs font-black text-amber-900">
-                    {ratingSummary.totalReviews > 0 ? `${ratingSummary.averageRating} / 5.0` : 'Chưa có đánh giá'}
-                  </span>
-                  <span className="text-[10px] text-amber-700 block">
-                    {ratingSummary.totalReviews > 0 ? `${ratingSummary.totalReviews} đánh giá` : 'Sân mới'}
-                  </span>
-                </div>
               </div>
             </div>
           </div>
@@ -640,113 +733,54 @@ export default function TrangChiTietSan({ user: propUser }) {
                   );
                 })}
               </div>
-            </div>
 
-            {/* =========================================================================
-                BƯỚC 2: MỤC ĐẶC QUYỀN & TÍNH NĂNG NỔI BẬT CỦA SÂN
-                (Có mái vòm, khu đợi dự bị, đèn LED, tắm nóng lạnh, camera AI)
-               ========================================================================= */}
-            <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-sm space-y-4">
-              <div className="border-b border-slate-100 pb-3">
-                <h2 className="text-base font-black text-slate-900 flex items-center gap-2">
-                  <span className="w-6 h-6 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center text-xs font-black">
-                    ✨
-                  </span>
-                  <span>Đặc Quyền & Tính Năng Nổi Bật Của Cụm Sân</span>
-                </h2>
-                <p className="text-xs text-slate-400 ml-8 mt-0.5">
-                  Tất cả khách đặt sân đều được sử dụng miễn phí các tiện nghi tiêu chuẩn 5 sao
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5 pt-1">
-                {DAC_QUYEN_SAN.map((feat, idx) => (
-                  <div key={idx} className="p-3.5 bg-slate-50/80 rounded-2xl border border-slate-200/60 hover:bg-white hover:shadow-sm transition">
-                    <div className="text-2xl mb-1.5">{feat.icon}</div>
-                    <h4 className="text-xs font-black text-slate-900 mb-0.5">{feat.title}</h4>
-                    <p className="text-[11px] text-slate-500 leading-relaxed">{feat.desc}</p>
+              {/* Tùy chọn Hình Thức Thi Đấu (Đơn 1v1 / Đôi 2v2) cho Cầu Lông & Tennis */}
+              {['BADMINTON', 'TENNIS'].includes(maMon) && (
+                <div className="mt-4 p-4 rounded-2xl bg-slate-50 border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-black text-slate-800 flex items-center gap-1.5">
+                      <span>👥 Chọn Hình Thức Thi Đấu Mong Muốn</span>
+                    </p>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      Cả 2 chế độ thi đấu đều diễn ra trên cùng sân vật lý tiêu chuẩn (dùng chung lịch)
+                    </p>
                   </div>
-                ))}
-              </div>
-            </div>
-
-            {/* =========================================================================
-                BƯỚC 3: DỊCH VỤ & TIỆN ÍCH KÈM THEO (CHỈ HIỂN THỊ ĐÚNG THEO MÔN ĐÓ)
-               ========================================================================= */}
-            <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-sm space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                <div>
-                  <h2 className="text-base font-black text-slate-900 flex items-center gap-2">
-                    <span className="w-6 h-6 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center text-xs font-black">
-                      2
-                    </span>
-                    <span>Dịch Vụ & Tiện Ích Kèm Theo (Môn {tenMonTiengViet})</span>
-                  </h2>
-                  <p className="text-xs text-slate-400 ml-8 mt-0.5">
-                    Tick chọn áo thi đấu, dụng cụ thể thao hoặc nước giải khát phục vụ tận sân
-                  </p>
-                </div>
-
-                {selectedAddons.length > 0 && (
-                  <span className="text-xs font-black text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full">
-                    Đã chọn {selectedAddons.length} dịch vụ
-                  </span>
-                )}
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                {danhSachDichVu.map((item) => {
-                  const isChecked = selectedAddons.includes(item.id);
-
-                  return (
-                    <div
-                      key={item.id}
-                      onClick={() => toggleDichVu(item.id)}
-                      className={`p-3.5 rounded-2xl border-2 cursor-pointer transition-all flex items-start gap-3 ${
-                        isChecked
-                          ? 'border-amber-500 bg-amber-50/40 shadow-sm'
-                          : 'border-slate-200 hover:border-slate-300 bg-white'
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setHinhThucThiDau('Đơn (1v1)')}
+                      className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                        hinhThucThiDau === 'Đơn (1v1)'
+                          ? 'bg-brand-600 text-white shadow-sm'
+                          : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'
                       }`}
                     >
-                      <div className="text-2xl shrink-0 mt-0.5">{item.icon}</div>
-                      
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-1">
-                          <p className={`text-xs font-bold leading-tight ${isChecked ? 'text-amber-950 font-black' : 'text-slate-800'}`}>
-                            {item.name}
-                          </p>
-                          <div className={`w-4 h-4 rounded-md border flex items-center justify-center shrink-0 mt-0.5 ${
-                            isChecked ? 'border-amber-600 bg-amber-600 text-white' : 'border-slate-300'
-                          }`}>
-                            {isChecked && <Check className="w-3 h-3 stroke-[3]" />}
-                          </div>
-                        </div>
-
-                        <p className="text-[11px] text-slate-500 mt-1 line-clamp-1">
-                          {item.desc}
-                        </p>
-
-                        <div className="mt-2 flex items-baseline gap-1">
-                          <span className="text-xs font-black text-amber-600">
-                            +{item.price.toLocaleString('vi-VN')} đ
-                          </span>
-                          <span className="text-[10px] text-slate-400">/{item.unit}</span>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+                      🏸 Đánh Đơn (1v1)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setHinhThucThiDau('Đôi (2v2)')}
+                      className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                        hinhThucThiDau === 'Đôi (2v2)'
+                          ? 'bg-brand-600 text-white shadow-sm'
+                          : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'
+                      }`}
+                    >
+                      👥 Đánh Đôi (2v2)
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* =========================================================================
-                BƯỚC 4: CHỌN NGÀY & THỜI GIAN THUÊ (SMART TIME SELECTOR)
+                BƯỚC 2: CHỌN NGÀY & THỜI GIAN THUÊ (SMART TIME SELECTOR)
                ========================================================================= */}
             <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-sm space-y-5">
               <div>
                 <h2 className="text-base font-black text-slate-900 flex items-center gap-2">
                   <span className="w-6 h-6 rounded-lg bg-brand-50 text-brand-600 flex items-center justify-center text-xs font-black">
-                    3
+                    2
                   </span>
                   <span>Chọn Ngày & Thời Gian Thuê Sân</span>
                 </h2>
@@ -840,63 +874,166 @@ export default function TrangChiTietSan({ user: propUser }) {
                       <span>Thời lượng thuê:</span>
                     </label>
 
-                    {/* Bộ tăng giảm số giờ linh hoạt (tối đa tới giờ đóng cửa 22:30) */}
-                    <div className="flex items-center gap-1.5 bg-slate-100 p-0.5 rounded-xl border border-slate-200">
+                    {/* Bộ tăng giảm số giờ linh hoạt theo bước 30 phút (tối thiểu 60p theo quy định sân, tối đa tới giờ đóng cửa) */}
+                    <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-xl border border-slate-200">
                       <button
                         type="button"
-                        onClick={() => setSlotCount(prev => Math.max(1, prev - 1))}
-                        disabled={slotCount <= 1}
+                        onClick={() => setDurationMinutes(prev => Math.max(60, prev - 30))}
+                        disabled={durationMinutes <= 60}
                         className="w-6 h-6 rounded-lg bg-white hover:bg-slate-200 text-slate-700 font-black text-xs flex items-center justify-center transition disabled:opacity-30 cursor-pointer shadow-xs"
                       >
                         -
                       </button>
-                      <span className="text-xs font-black text-brand-700 px-1 min-w-[50px] text-center">
-                        {slotCount} tiếng
+                      <span className="text-xs font-black text-brand-700 px-1.5 min-w-[62px] text-center">
+                        {thoiLuongHienThi}
                       </span>
                       <button
                         type="button"
-                        onClick={() => setSlotCount(prev => Math.min(thoiLuongToiDaGio, prev + 1))}
-                        disabled={slotCount >= thoiLuongToiDaGio}
+                        onClick={() => setDurationMinutes(prev => Math.min(thoiLuongToiDaPhut, prev + 30))}
+                        disabled={durationMinutes >= thoiLuongToiDaPhut}
                         className="w-6 h-6 rounded-lg bg-white hover:bg-slate-200 text-slate-700 font-black text-xs flex items-center justify-center transition disabled:opacity-30 cursor-pointer shadow-xs"
-                        title={slotCount >= thoiLuongToiDaGio ? "Đã chạm giới hạn giờ đóng cửa 22:30" : ""}
+                        title={durationMinutes >= thoiLuongToiDaPhut ? `Đã chạm giới hạn giờ đóng cửa ${gioDongCuaStr.slice(0, 5)}` : ""}
                       >
                         +
                       </button>
                     </div>
                   </div>
 
-                  {/* Nút bấm chọn nhanh các mốc giờ (tự động disable nếu vượt quá giờ đóng cửa 22:30) */}
+                  {/* Nút bấm chọn nhanh các mốc giờ: 1h, 1.5h (90p), 2h, 3h, 4h, 6h */}
                   <div className="grid grid-cols-6 gap-1">
-                    {[1, 2, 3, 4, 6, 12].map((num) => {
-                      const vuotGioDongCua = num > thoiLuongToiDaGio;
+                    {[
+                      { minutes: 60, label: '1h' },
+                      { minutes: 90, label: '1.5h' },
+                      { minutes: 120, label: '2h' },
+                      { minutes: 180, label: '3h' },
+                      { minutes: 240, label: '4h' },
+                      { minutes: 360, label: '6h' }
+                    ].map((item) => {
+                      const vuotGioDongCua = item.minutes > thoiLuongToiDaPhut;
                       return (
                         <button
                           type="button"
-                          key={num}
+                          key={item.minutes}
                           disabled={vuotGioDongCua}
-                          onClick={() => setSlotCount(num)}
-                          title={vuotGioDongCua ? `Vượt quá giờ đóng cửa (22:30). Tối đa ${thoiLuongToiDaGio}h.` : ''}
+                          onClick={() => setDurationMinutes(item.minutes)}
+                          title={vuotGioDongCua ? `Vượt quá giờ đóng cửa (${gioDongCuaStr.slice(0, 5)}). Tối đa ${Math.floor(thoiLuongToiDaPhut / 60)}h${thoiLuongToiDaPhut % 60 ? `${thoiLuongToiDaPhut % 60}p` : ''}.` : ''}
                           className={`py-2 rounded-xl text-[11px] font-black transition text-center ${
                             vuotGioDongCua
                               ? 'bg-slate-100 text-slate-300 border border-slate-200/50 cursor-not-allowed opacity-40'
-                              : slotCount === num
+                              : durationMinutes === item.minutes
                                 ? 'bg-brand-600 text-white shadow-md shadow-brand-500/25 scale-[1.02] cursor-pointer'
                                 : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 cursor-pointer'
                           }`}
                         >
-                          {num === 12 ? '12h (Trọn)' : `${num}h`}
+                          {item.label}
                         </button>
                       );
                     })}
                   </div>
-                  {thoiLuongToiDaGio < 12 && (
+                  {thoiLuongToiDaPhut < 720 && (
                     <p className="text-[10px] text-slate-400 mt-1.5 text-right italic">
-                      ℹ️ Giờ đóng cửa: 22:30 (Tối đa đặt được {thoiLuongToiDaGio}h từ {gioBatDauHienThi})
+                      ℹ️ Giờ đóng cửa: {gioDongCuaStr.slice(0, 5)} (Tối đa {Math.floor(thoiLuongToiDaPhut / 60)}h{thoiLuongToiDaPhut % 60 ? `${thoiLuongToiDaPhut % 60}p` : ''} từ {gioBatDauHienThi})
                     </p>
                   )}
                 </div>
               </div>
 
+            </div>
+
+            {/* =========================================================================
+                BƯỚC 3: DỊCH VỤ & TIỆN ÍCH KÈM THEO (CHỈ HIỂN THỊ ĐÚNG THEO MÔN ĐÓ)
+               ========================================================================= */}
+            <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-sm space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div>
+                  <h2 className="text-base font-black text-slate-900 flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center text-xs font-black">
+                      3
+                    </span>
+                    <span>Dịch Vụ & Tiện Ích Kèm Theo (Môn {tenMonTiengViet})</span>
+                  </h2>
+                  <p className="text-xs text-slate-400 ml-8 mt-0.5">
+                    Tick chọn áo thi đấu, dụng cụ thể thao hoặc nước giải khát phục vụ tận sân
+                  </p>
+                </div>
+
+                {selectedAddons.length > 0 && (
+                  <span className="text-xs font-black text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full">
+                    Đã chọn {selectedAddons.length} dịch vụ
+                  </span>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                {danhSachDichVu.map((item) => {
+                  const isChecked = selectedAddons.includes(item.id);
+
+                  return (
+                    <div
+                      key={item.id}
+                      onClick={() => toggleDichVu(item.id)}
+                      className={`p-3.5 rounded-2xl border-2 cursor-pointer transition-all flex items-start gap-3 ${
+                        isChecked
+                          ? 'border-amber-500 bg-amber-50/40 shadow-sm'
+                          : 'border-slate-200 hover:border-slate-300 bg-white'
+                      }`}
+                    >
+                      <div className="text-2xl shrink-0 mt-0.5">{item.icon}</div>
+                      
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-1">
+                          <p className={`text-xs font-bold leading-tight ${isChecked ? 'text-amber-950 font-black' : 'text-slate-800'}`}>
+                            {item.name}
+                          </p>
+                          <div className={`w-4 h-4 rounded-md border flex items-center justify-center shrink-0 mt-0.5 ${
+                            isChecked ? 'border-amber-600 bg-amber-600 text-white' : 'border-slate-300'
+                          }`}>
+                            {isChecked && <Check className="w-3 h-3 stroke-[3]" />}
+                          </div>
+                        </div>
+
+                        <p className="text-[11px] text-slate-500 mt-1 line-clamp-1">
+                          {item.desc}
+                        </p>
+
+                        <div className="mt-2 flex items-baseline gap-1">
+                          <span className="text-xs font-black text-amber-600">
+                            +{item.price.toLocaleString('vi-VN')} đ
+                          </span>
+                          <span className="text-[10px] text-slate-400">/{item.unit}</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* =========================================================================
+                ĐÁY TRANG: MỤC ĐẶC QUYỀN & TÍNH NĂNG NỔI BẬT CỦA CỤM SÂN (TIÊU CHUẨN 5 SAO)
+               ========================================================================= */}
+            <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-sm space-y-4">
+              <div className="border-b border-slate-100 pb-3">
+                <h2 className="text-base font-black text-slate-900 flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center text-xs font-black">
+                    ✨
+                  </span>
+                  <span>Đặc Quyền & Tính Năng Nổi Bật Của Cụm Sân</span>
+                </h2>
+                <p className="text-xs text-slate-400 ml-8 mt-0.5">
+                  Tất cả khách đặt sân đều được sử dụng miễn phí các tiện nghi tiêu chuẩn 5 sao
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5 pt-1">
+                {DAC_QUYEN_SAN.map((feat, idx) => (
+                  <div key={idx} className="p-3.5 bg-slate-50/80 rounded-2xl border border-slate-200/60 hover:bg-white hover:shadow-sm transition">
+                    <div className="text-2xl mb-1.5">{feat.icon}</div>
+                    <h4 className="text-xs font-black text-slate-900 mb-0.5">{feat.title}</h4>
+                    <p className="text-[11px] text-slate-500 leading-relaxed">{feat.desc}</p>
+                  </div>
+                ))}
+              </div>
             </div>
 
           </div>
@@ -927,6 +1064,15 @@ export default function TrangChiTietSan({ user: propUser }) {
                   </div>
                 </div>
 
+                {['BADMINTON', 'TENNIS'].includes(maMon) && (
+                  <div className="flex justify-between py-1 border-b border-slate-50 items-center">
+                    <span className="text-slate-500">Hình thức thi đấu:</span>
+                    <span className="font-black text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-200/50">
+                      ✓ {hinhThucThiDau}
+                    </span>
+                  </div>
+                )}
+
                 <div className="flex justify-between py-1 border-b border-slate-50">
                   <span className="text-slate-500">Ngày chơi:</span>
                   <span className="font-bold text-slate-800">{selectedDate}</span>
@@ -935,7 +1081,7 @@ export default function TrangChiTietSan({ user: propUser }) {
                 <div className="flex justify-between py-1 border-b border-slate-50">
                   <span className="text-slate-500">Khung giờ:</span>
                   <span className="font-bold text-slate-800">
-                    {gioBatDauHienThi} - {gioKetThucHienThi} ({slotCount} tiếng)
+                    {gioBatDauHienThi} - {gioKetThucHienThi} ({thoiLuongHienThi})
                   </span>
                 </div>
 
@@ -983,7 +1129,12 @@ export default function TrangChiTietSan({ user: propUser }) {
               {/* Bảng kê tổng chi phí */}
               <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/60 space-y-2 text-xs">
                 <div className="flex justify-between text-slate-600">
-                  <span>Tiền thuê sân ({slotCount} tiếng):</span>
+                  <span className="flex items-center gap-1.5">
+                    <span>Tiền thuê sân ({thoiLuongHienThi}):</span>
+                    {previewLoading && (
+                      <span className="text-[10px] text-brand-600 animate-pulse">(đang tính...)</span>
+                    )}
+                  </span>
                   <span className="font-bold text-slate-800">{tongTienSan.toLocaleString('vi-VN')} đ</span>
                 </div>
 
@@ -1023,6 +1174,14 @@ export default function TrangChiTietSan({ user: propUser }) {
                 )}
               </div>
 
+              {/* Cảnh báo lỗi preview nếu có */}
+              {previewError && (
+                <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 text-xs font-semibold flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-600" />
+                  <span className="leading-relaxed">{previewError}</span>
+                </div>
+              )}
+
               {/* Lỗi nếu có */}
               {errorMsg && (
                 <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold space-y-2.5">
@@ -1045,11 +1204,15 @@ export default function TrangChiTietSan({ user: propUser }) {
               {/* Nút Đặt Sân */}
               <button
                 onClick={handleXacNhanDatSan}
-                disabled={submitting}
-                className="w-full py-4 bg-brand-600 hover:bg-brand-700 active:scale-95 text-white rounded-2xl font-black text-sm shadow-lg shadow-brand-500/30 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                disabled={submitting || previewLoading || !previewGia || !!previewError}
+                className="w-full py-4 bg-brand-600 hover:bg-brand-700 active:scale-95 text-white rounded-2xl font-black text-sm shadow-lg shadow-brand-500/30 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {submitting ? (
                   <span>Đang giữ chỗ...</span>
+                ) : previewLoading ? (
+                  <span>Đang tính báo giá...</span>
+                ) : previewError ? (
+                  <span>Khung Giờ Không Khả Dụng</span>
                 ) : (
                   <>
                     <span>Xác Nhận Thuê & Thanh Toán</span>

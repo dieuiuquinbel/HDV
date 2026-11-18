@@ -35,9 +35,6 @@ public class CauHinhDinhTuyen {
     @Value("${gateway.notification-service-url}")
     private String notificationServiceUrl;
 
-    @Value("${gateway.review-service-url}")
-    private String reviewServiceUrl;
-
     @Value("${gateway.frontend-url}")
     private String frontendUrl;
 
@@ -109,12 +106,6 @@ public class CauHinhDinhTuyen {
                         .path("/api/v1/notifications/**")
                         .filters(f -> f.stripPrefix(2))
                         .uri(notificationServiceUrl))
-
-                // 6. Review Service
-                .route("review-main-route", r -> r
-                        .path("/api/v1/reviews/**")
-                        .filters(f -> f.stripPrefix(2))
-                        .uri(reviewServiceUrl))
                 .build();
     }
 

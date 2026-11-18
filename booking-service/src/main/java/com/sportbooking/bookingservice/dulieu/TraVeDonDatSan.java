@@ -31,6 +31,10 @@ public class TraVeDonDatSan {
     private Instant expiredAt;
     private Instant createdAt;
     private String checkinToken;
+    private String courtName;
+    private Long venueId;
+    private String venueName;
+    private Instant checkedInAt;
     private List<KhungGioChiTiet> slots;
 
     @Data
@@ -42,12 +46,20 @@ public class TraVeDonDatSan {
     }
 
     public static TraVeDonDatSan tuThucThe(DonDatSan booking, List<KhungGioChiTiet> slots) {
+        return tuThucThe(booking, slots, null, null, null);
+    }
+
+    public static TraVeDonDatSan tuThucThe(DonDatSan booking, List<KhungGioChiTiet> slots, String courtName, Long venueId, String venueName) {
         String token = com.sportbooking.bookingservice.baomat.CheckinSecurityUtil.taoMaCheckin(
                 booking.getId(), booking.getCustomerId(), booking.getBookingDate());
         return TraVeDonDatSan.builder()
                 .id(booking.getId())
                 .customerId(booking.getCustomerId())
                 .courtId(booking.getCourtId())
+                .courtName(courtName)
+                .venueId(venueId)
+                .venueName(venueName)
+                .checkedInAt(booking.getCheckedInAt())
                 .bookingDate(booking.getBookingDate())
                 .startSlot(booking.getStartSlot())
                 .endSlot(booking.getEndSlot())

@@ -28,6 +28,8 @@ public class TraVeSanCon {
     private String environment;
     private String dimensions;
     private String name;
+    private String courtCode;
+    private String imageUrl;
     private Integer capacity;
     private BigDecimal basePrice;
     private Integer slotStepMinutes;
@@ -54,6 +56,8 @@ public class TraVeSanCon {
                 .environment(catalog != null ? catalog.getEnvironment() : null)
                 .dimensions(catalog != null ? catalog.getDimensions() : null)
                 .name(court.getName())
+                .courtCode(court.getCourtCode())
+                .imageUrl(court.getImageUrl())
                 .capacity(court.getCapacity())
                 .basePrice(court.getBasePrice())
                 .slotStepMinutes(court.getSlotStepMinutes())

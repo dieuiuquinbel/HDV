@@ -20,7 +20,6 @@ import {
   Menu, 
   X,
   Ticket,
-  Star,
   ChevronDown,
   Sparkles,
   Gift,

@@ -75,6 +75,7 @@ export const apiDichVu = {
   taoDonDat: (data, idempotencyKey) => api.post('/bookings', data, {
     headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}
   }),
+  tinhBaoGiaSan: (data) => api.post('/bookings/preview', data),
   layDonDatCuaToi: (params) => api.get('/bookings/me', { params }),
   layChiTietDonDat: (id) => api.get(`/bookings/${id}`),
   huyDonDat: (id) => api.post(`/bookings/${id}/cancel`),
@@ -101,11 +102,6 @@ export const apiDichVu = {
   layThongBaoCuaToi: (params) => api.get('/notifications/me', { params }),
   demThongBaoChuaDoc: () => api.get('/notifications/me/unread-count'),
   danhDauDaDocThongBao: (id) => api.patch(`/notifications/${id}/read`),
-
-  // 6. Danh gia (Review Service)
-  layDanhGiaSan: (courtId, params) => api.get(`/reviews/court/${courtId}`, { params }),
-  layTongQuanRating: (courtId) => api.get(`/reviews/court/${courtId}/summary`),
-  taoDanhGiaSan: (data) => api.post('/reviews', data),
 };
 
 export default api;

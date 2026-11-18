@@ -81,33 +81,9 @@ public class DichVuDatSan {
                 : (yeuCau.getSlotCount() != null ? yeuCau.getSlotCount() * 60 : 60);
 
         LocalTime startSlot = yeuCau.getStartSlot();
-        if (startSlot == null || startSlot.getMinute() % 30 != 0 || startSlot.getSecond() != 0 || startSlot.getNano() != 0) {
-            throw new LoiNghiepVu(HttpStatus.BAD_REQUEST, "INVALID_START_TIME", "Giờ bắt đầu thuê sân phải theo mốc 30 phút (ví dụ: hh:00 hoặc hh:30).");
-        }
+        kiemTraThoiLuongVaGioHoatDong(config, yeuCau.getBookingDate(), startSlot, durationMinutes);
 
-        if (durationMinutes % 30 != 0) {
-            throw new LoiNghiepVu(HttpStatus.BAD_REQUEST, "INVALID_DURATION", "Thời lượng thuê sân phải là bội số của 30 phút.");
-        }
-
-        int minDuration = (config.getMinDurationMinutes() != null) ? config.getMinDurationMinutes() : 60;
-        int maxDuration = (config.getMaxDurationMinutes() != null) ? config.getMaxDurationMinutes() : 720;
-        if (durationMinutes < minDuration || durationMinutes > maxDuration) {
-            throw new LoiNghiepVu(HttpStatus.BAD_REQUEST, "DURATION_OUT_OF_RANGE",
-                    "Thời lượng thuê sân phải từ " + minDuration + " phút đến " + maxDuration + " phút.");
-        }
-
-        LocalTime open = config.getOpenTime();
-        LocalTime close = config.getCloseTime();
-        LocalDateTime endDateTime = LocalDateTime.of(yeuCau.getBookingDate(), startSlot).plusMinutes(durationMinutes);
-        if (!endDateTime.toLocalDate().equals(yeuCau.getBookingDate())) {
-            throw new LoiNghiepVu(HttpStatus.UNPROCESSABLE_ENTITY, "BOOKING_TIME_INVALID", "Khung giờ đặt sân không được kéo dài sang ngày hôm sau.");
-        }
-        LocalTime endSlot = endDateTime.toLocalTime();
-
-        if (startSlot.isBefore(open) || endSlot.isAfter(close)) {
-            throw new LoiNghiepVu(HttpStatus.CONFLICT, "OUT_OF_OPERATING_HOURS", "Khung giờ thuê vượt quá thời gian mở cửa hoạt động của sân.");
-        }
-
+        LocalTime endSlot = startSlot.plusMinutes(durationMinutes);
         int numBlocks = durationMinutes / 30;
 
         // 5. Kiem tra truoc xem co block 30 phut nao da bi khoa trong DB chua (lazy check)
@@ -151,26 +127,13 @@ public class DichVuDatSan {
                     .build());
         }
 
-        // 6.1. Xu ly ma uu dai giam gia (Voucher) neu co
+        // 6.1. Xu ly ma uu dai giam gia (Voucher) neu co bang ham dung chung
+        BigDecimal giamGia = BigDecimal.ZERO;
         if (yeuCau.getVoucherCode() != null && !yeuCau.getVoucherCode().trim().isEmpty()) {
             Optional<MaUuDai> voucherOpt = khoMaUuDai.findByCodeIgnoreCaseAndActiveTrue(yeuCau.getVoucherCode().trim());
             if (voucherOpt.isPresent()) {
-                MaUuDai v = voucherOpt.get();
-                if (v.getMinOrderAmount() == null || tongTien.compareTo(v.getMinOrderAmount()) >= 0) {
-                    BigDecimal giamGia = BigDecimal.ZERO;
-                    if (v.getDiscountPercent() != null && v.getDiscountPercent() > 0) {
-                        giamGia = tongTien.multiply(BigDecimal.valueOf(v.getDiscountPercent())).divide(BigDecimal.valueOf(100));
-                        if (v.getMaxDiscount() != null && v.getMaxDiscount().compareTo(BigDecimal.ZERO) > 0 && giamGia.compareTo(v.getMaxDiscount()) > 0) {
-                            giamGia = v.getMaxDiscount();
-                        }
-                    } else if (v.getDiscountAmount() != null && v.getDiscountAmount().compareTo(BigDecimal.ZERO) > 0) {
-                        giamGia = v.getDiscountAmount();
-                    }
-                    tongTien = tongTien.subtract(giamGia);
-                    if (tongTien.compareTo(BigDecimal.ZERO) < 0) {
-                        tongTien = BigDecimal.ZERO;
-                    }
-                }
+                giamGia = tinhTienGiamVoucher(voucherOpt.get(), tongTien);
+                tongTien = tongTien.subtract(giamGia).max(BigDecimal.ZERO);
             }
         }
 
@@ -232,7 +195,7 @@ public class DichVuDatSan {
                 "BOOKING_CREATED",
                 bookingId);
 
-        return TraVeDonDatSan.tuThucThe(booking, slotDetails);
+        return TraVeDonDatSan.tuThucThe(booking, slotDetails, config.getCourtName(), config.getVenueId(), config.getVenueName());
     }
 
     @Transactional(readOnly = true)
@@ -255,7 +218,19 @@ public class DichVuDatSan {
                 .map(s -> TraVeDonDatSan.KhungGioChiTiet.builder().start(s.getSlotStart()).end(s.getSlotEnd()).build())
                 .collect(Collectors.toList());
 
-        return TraVeDonDatSan.tuThucThe(booking, slots);
+        String courtName = null;
+        Long venueId = null;
+        String venueName = null;
+        try {
+            var cfg = dichVuGoiSanNoiBo.layCauHinhSan(booking.getCourtId(), booking.getBookingDate());
+            if (cfg != null) {
+                courtName = cfg.getCourtName();
+                venueId = cfg.getVenueId();
+                venueName = cfg.getVenueName();
+            }
+        } catch (Exception ignored) {}
+
+        return TraVeDonDatSan.tuThucThe(booking, slots, courtName, venueId, venueName);
     }
 
     @Transactional(readOnly = true)
@@ -311,7 +286,19 @@ public class DichVuDatSan {
                 .map(s -> TraVeDonDatSan.KhungGioChiTiet.builder().start(s.getSlotStart()).end(s.getSlotEnd()).build())
                 .collect(Collectors.toList());
 
-        return TraVeDonDatSan.tuThucThe(booking, slots);
+        String courtName = null;
+        Long venueId = null;
+        String venueName = null;
+        try {
+            var cfg = dichVuGoiSanNoiBo.layCauHinhSan(booking.getCourtId(), booking.getBookingDate());
+            if (cfg != null) {
+                courtName = cfg.getCourtName();
+                venueId = cfg.getVenueId();
+                venueName = cfg.getVenueName();
+            }
+        } catch (Exception ignored) {}
+
+        return TraVeDonDatSan.tuThucThe(booking, slots, courtName, venueId, venueName);
     }
 
     @Transactional(readOnly = true)
@@ -321,7 +308,18 @@ public class DichVuDatSan {
                     List<TraVeDonDatSan.KhungGioChiTiet> slots = khoKhungGioDat.findByBookingId(b.getId()).stream()
                             .map(s -> TraVeDonDatSan.KhungGioChiTiet.builder().start(s.getSlotStart()).end(s.getSlotEnd()).build())
                             .collect(Collectors.toList());
-                    return TraVeDonDatSan.tuThucThe(b, slots);
+                    String courtName = null;
+                    Long venueId = null;
+                    String venueName = null;
+                    try {
+                        var cfg = dichVuGoiSanNoiBo.layCauHinhSan(b.getCourtId(), b.getBookingDate());
+                        if (cfg != null) {
+                            courtName = cfg.getCourtName();
+                            venueId = cfg.getVenueId();
+                            venueName = cfg.getVenueName();
+                        }
+                    } catch (Exception ignored) {}
+                    return TraVeDonDatSan.tuThucThe(b, slots, courtName, venueId, venueName);
                 });
     }
 
@@ -462,6 +460,121 @@ public class DichVuDatSan {
         return khoMaUuDai.findAllByActiveTrue().stream()
                 .map(TraVeMaUuDai::tuThucThe)
                 .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public com.sportbooking.bookingservice.dulieu.TraVeBaoGiaDatSan tinhBaoGiaTruoc(YeuCauDatSan yeuCau) {
+        if (yeuCau.getCourtId() == null || yeuCau.getBookingDate() == null || yeuCau.getStartSlot() == null) {
+            throw new LoiNghiepVu(HttpStatus.BAD_REQUEST, "INVALID_PREVIEW_REQUEST", "Thiếu thông tin sân, ngày hoặc giờ bắt đầu.");
+        }
+
+        TraVeCauHinhSanNoiBo config = dichVuGoiSanNoiBo.layCauHinhSan(yeuCau.getCourtId(), yeuCau.getBookingDate());
+
+        int durationMinutes = (yeuCau.getDurationMinutes() != null && yeuCau.getDurationMinutes() > 0)
+                ? yeuCau.getDurationMinutes()
+                : (yeuCau.getSlotCount() != null ? yeuCau.getSlotCount() * 60 : 60);
+
+        LocalTime startSlot = yeuCau.getStartSlot();
+        kiemTraThoiLuongVaGioHoatDong(config, yeuCau.getBookingDate(), startSlot, durationMinutes);
+
+        int numBlocks = durationMinutes / 30;
+
+        BigDecimal tongTien = BigDecimal.ZERO;
+        List<TraVeDonDatSan.KhungGioChiTiet> slotDetails = new ArrayList<>();
+
+        for (int i = 0; i < numBlocks; i++) {
+            LocalTime sStart = startSlot.plusMinutes(i * 30L);
+            LocalTime sEnd = sStart.plusMinutes(30L);
+            BigDecimal hourlyPrice = dichVuKhaDung.tinhGiaSlot(config, sStart);
+            BigDecimal blockPrice = hourlyPrice.divide(BigDecimal.valueOf(2), 2, java.math.RoundingMode.HALF_UP);
+            tongTien = tongTien.add(blockPrice);
+
+            slotDetails.add(TraVeDonDatSan.KhungGioChiTiet.builder()
+                    .start(sStart)
+                    .end(sEnd)
+                    .unitPrice(blockPrice)
+                    .build());
+        }
+
+        BigDecimal giamGia = BigDecimal.ZERO;
+        if (yeuCau.getVoucherCode() != null && !yeuCau.getVoucherCode().trim().isEmpty()) {
+            Optional<MaUuDai> voucherOpt = khoMaUuDai.findByCodeIgnoreCaseAndActiveTrue(yeuCau.getVoucherCode().trim());
+            if (voucherOpt.isPresent()) {
+                giamGia = tinhTienGiamVoucher(voucherOpt.get(), tongTien);
+            }
+        }
+
+        BigDecimal finalPrice = tongTien.subtract(giamGia).max(BigDecimal.ZERO);
+        LocalTime endSlot = startSlot.plusMinutes(durationMinutes);
+
+        return com.sportbooking.bookingservice.dulieu.TraVeBaoGiaDatSan.builder()
+                .courtId(yeuCau.getCourtId())
+                .courtName(config.getCourtName())
+                .venueId(config.getVenueId())
+                .venueName(config.getVenueName())
+                .bookingDate(yeuCau.getBookingDate())
+                .startSlot(startSlot)
+                .endSlot(endSlot)
+                .durationMinutes(durationMinutes)
+                .basePrice(config.getBasePrice())
+                .totalCourtPrice(tongTien)
+                .voucherCode(yeuCau.getVoucherCode())
+                .discountAmount(giamGia)
+                .finalAmount(finalPrice)
+                .currency("VND")
+                .openTime(config.getOpenTime())
+                .closeTime(config.getCloseTime())
+                .slots(slotDetails)
+                .build();
+    }
+
+    public BigDecimal tinhTienGiamVoucher(MaUuDai v, BigDecimal tongTien) {
+        if (v == null || tongTien == null || tongTien.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO;
+        }
+        if (v.getMinOrderAmount() != null && tongTien.compareTo(v.getMinOrderAmount()) < 0) {
+            return BigDecimal.ZERO;
+        }
+        BigDecimal giamGia = BigDecimal.ZERO;
+        if (v.getDiscountPercent() != null && v.getDiscountPercent() > 0) {
+            BigDecimal phanTram = BigDecimal.valueOf(v.getDiscountPercent()).divide(BigDecimal.valueOf(100), 4, java.math.RoundingMode.HALF_UP);
+            giamGia = tongTien.multiply(phanTram).setScale(0, java.math.RoundingMode.HALF_UP);
+            if (v.getMaxDiscount() != null && v.getMaxDiscount().compareTo(BigDecimal.ZERO) > 0 && giamGia.compareTo(v.getMaxDiscount()) > 0) {
+                giamGia = v.getMaxDiscount();
+            }
+        } else if (v.getDiscountAmount() != null && v.getDiscountAmount().compareTo(BigDecimal.ZERO) > 0) {
+            giamGia = v.getDiscountAmount().min(tongTien);
+        }
+        return giamGia.min(tongTien);
+    }
+
+    public void kiemTraThoiLuongVaGioHoatDong(TraVeCauHinhSanNoiBo config, LocalDate bookingDate, LocalTime startSlot, int durationMinutes) {
+        if (startSlot == null || startSlot.getMinute() % 30 != 0 || startSlot.getSecond() != 0 || startSlot.getNano() != 0) {
+            throw new LoiNghiepVu(HttpStatus.BAD_REQUEST, "INVALID_START_TIME", "Giờ bắt đầu thuê sân phải theo mốc 30 phút (ví dụ: hh:00 hoặc hh:30).");
+        }
+
+        if (durationMinutes % 30 != 0) {
+            throw new LoiNghiepVu(HttpStatus.BAD_REQUEST, "INVALID_DURATION", "Thời lượng thuê sân phải là bội số của 30 phút.");
+        }
+
+        int minDuration = (config.getMinDurationMinutes() != null) ? config.getMinDurationMinutes() : 60;
+        int maxDuration = (config.getMaxDurationMinutes() != null) ? config.getMaxDurationMinutes() : 720;
+        if (durationMinutes < minDuration || durationMinutes > maxDuration) {
+            throw new LoiNghiepVu(HttpStatus.BAD_REQUEST, "DURATION_OUT_OF_RANGE",
+                    "Thời lượng thuê sân phải từ " + minDuration + " phút đến " + maxDuration + " phút.");
+        }
+
+        LocalTime open = config.getOpenTime();
+        LocalTime close = config.getCloseTime();
+        LocalDateTime endDateTime = LocalDateTime.of(bookingDate, startSlot).plusMinutes(durationMinutes);
+        if (!endDateTime.toLocalDate().equals(bookingDate)) {
+            throw new LoiNghiepVu(HttpStatus.UNPROCESSABLE_ENTITY, "BOOKING_TIME_INVALID", "Khung giờ đặt sân không được kéo dài sang ngày hôm sau.");
+        }
+        LocalTime endSlot = endDateTime.toLocalTime();
+
+        if (startSlot.isBefore(open) || endSlot.isAfter(close)) {
+            throw new LoiNghiepVu(HttpStatus.CONFLICT, "OUT_OF_OPERATING_HOURS", "Khung giờ thuê vượt quá thời gian mở cửa hoạt động của sân.");
+        }
     }
 
     private String tinhHashPayload(YeuCauDatSan req) {

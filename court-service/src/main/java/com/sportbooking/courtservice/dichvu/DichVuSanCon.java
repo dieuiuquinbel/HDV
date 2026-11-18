@@ -259,6 +259,7 @@ public class DichVuSanCon {
                 .courtName(court.getName())
                 .courtStatus(court.getStatus().name())
                 .venueId(venue.getId())
+                .venueName(venue.getName())
                 .ownerId(venue.getOwnerId())
                 .venueStatus(venue.getStatus().name())
                 .basePrice(court.getBasePrice())

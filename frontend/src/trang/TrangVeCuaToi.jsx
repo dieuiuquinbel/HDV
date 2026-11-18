@@ -433,7 +433,8 @@ export default function TrangVeCuaToi({ user }) {
           <div className="space-y-6">
             {danhSachHienThi.map((don) => {
               const laChuaQuet = don.status === 'CONFIRMED';
-              const laDaNhanSan = don.status === 'COMPLETED';
+              const laDangSuDung = don.status === 'CHECKED_IN';
+              const laDaHoanTat = don.status === 'COMPLETED';
               const laChoThanhToan = don.status === 'PENDING_PAYMENT';
               const laDaHuy = don.status === 'CANCELLED' || don.status === 'CANCELLED_REFUNDED';
               const qrUrl = banDoQr[don.id];
@@ -444,7 +445,9 @@ export default function TrangVeCuaToi({ user }) {
                   className={`bg-white rounded-3xl border transition-all duration-200 shadow-sm overflow-hidden ${
                     laChuaQuet
                       ? 'border-brand-300 ring-2 ring-brand-500/10 hover:shadow-md'
-                      : 'border-slate-200 hover:border-slate-300'
+                      : laDangSuDung
+                        ? 'border-blue-300 ring-2 ring-blue-500/10 hover:shadow-md'
+                        : 'border-slate-200 hover:border-slate-300'
                   }`}
                 >
                   <div className="grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x divide-slate-100">
@@ -470,10 +473,16 @@ export default function TrangVeCuaToi({ user }) {
                             🔴 SẴN SÀNG CHECK-IN (CHƯA QUÉT)
                           </span>
                         )}
-                        {laDaNhanSan && (
+                        {laDangSuDung && (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200 text-xs font-black">
+                            <span className="w-2 h-2 rounded-full bg-blue-600 animate-ping" />
+                            🔵 ĐANG NHẬN SÂN (CHECKED-IN)
+                          </span>
+                        )}
+                        {laDaHoanTat && (
                           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-black">
                             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                            ĐÃ NHẬN SÂN (CHECKED-IN)
+                            ĐÃ HOÀN TẤT CA
                           </span>
                         )}
                         {laChoThanhToan && (
@@ -496,7 +505,8 @@ export default function TrangVeCuaToi({ user }) {
                         </div>
                         <div>
                           <h4 className="text-sm font-black text-slate-900">
-                            Sân Con #{don.courtId} • Hệ Thống eSportKing Hà Nội
+                            {don.courtName ? `${don.courtName} • ` : `Sân Con #${don.courtId} • `}
+                            {don.venueName || 'Hệ Thống eSportKing'}
                           </h4>
                           <p className="text-xs text-slate-500 font-semibold mt-0.5">
                             Cơ sở đạt chuẩn thi đấu FIFA/BWF, có mái vòm che mưa nắng & đèn chiếu sáng 500 Lux.

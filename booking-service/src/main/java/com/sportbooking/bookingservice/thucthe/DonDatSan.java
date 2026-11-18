@@ -55,6 +55,9 @@ public class DonDatSan {
     @Column(name = "expired_at", nullable = false)
     private Instant expiredAt;
 
+    @Column(name = "checked_in_at")
+    private Instant checkedInAt;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 

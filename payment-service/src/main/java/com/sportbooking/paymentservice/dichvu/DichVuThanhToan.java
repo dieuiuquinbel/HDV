@@ -44,9 +44,7 @@ public class DichVuThanhToan {
         Optional<GiaoDichThanhToan> existing = khoGiaoDichThanhToan.findByBookingId(bookingId);
         if (existing.isPresent()) {
             GiaoDichThanhToan tx = existing.get();
-            if (!tx.getCustomerId().equals(userId)) {
-                throw new LoiNghiepVu(HttpStatus.FORBIDDEN, "FORBIDDEN", "Bạn không phải chủ giao dịch thanh toán này.");
-            }
+            kiemTraQuyenChuGiaoDich(tx, userId, null);
             return KetQuaTaoGiaoDich.builder()
                     .giaoDich(TraVeGiaoDichThanhToan.tuThucThe(tx))
                     .isMoiTao(false)
@@ -102,9 +100,7 @@ public class DichVuThanhToan {
             GiaoDichThanhToan lockedTx = khoGiaoDichThanhToan.findByIdWithLock(paymentId)
                     .orElseThrow(() -> new LoiNghiepVu(HttpStatus.NOT_FOUND, "PAYMENT_NOT_FOUND", "Không tìm thấy giao dịch thanh toán."));
 
-            if (!lockedTx.getCustomerId().equals(userId)) {
-                throw new LoiNghiepVu(HttpStatus.FORBIDDEN, "FORBIDDEN", "Bạn không phải chủ sở hữu giao dịch này.");
-            }
+            kiemTraQuyenChuGiaoDich(lockedTx, userId, null);
 
             if (lockedTx.getStatus() == TrangThaiThanhToan.SUCCESS) {
                 return lockedTx;
@@ -185,9 +181,7 @@ public class DichVuThanhToan {
         GiaoDichThanhToan tx = khoGiaoDichThanhToan.findByIdWithLock(paymentId)
                 .orElseThrow(() -> new LoiNghiepVu(HttpStatus.NOT_FOUND, "PAYMENT_NOT_FOUND", "Không tìm thấy giao dịch thanh toán."));
 
-        if (!tx.getCustomerId().equals(userId)) {
-            throw new LoiNghiepVu(HttpStatus.FORBIDDEN, "FORBIDDEN", "Bạn không phải chủ sở hữu giao dịch này.");
-        }
+        kiemTraQuyenChuGiaoDich(tx, userId, null);
 
         if (tx.getStatus() != TrangThaiThanhToan.PENDING) {
             throw new LoiNghiepVu(HttpStatus.CONFLICT, "PAYMENT_NOT_PENDING", "Giao dịch không ở trạng thái chờ thanh toán.");
@@ -212,9 +206,7 @@ public class DichVuThanhToan {
                         .orElseThrow(() -> new LoiNghiepVu(HttpStatus.NOT_FOUND, "PAYMENT_NOT_FOUND", "Không tìm thấy giao dịch thanh toán."))
         );
 
-        if (!tx.getCustomerId().equals(userId)) {
-            throw new LoiNghiepVu(HttpStatus.FORBIDDEN, "FORBIDDEN", "Bạn không phải chủ sở hữu giao dịch này.");
-        }
+        kiemTraQuyenChuGiaoDich(tx, userId, null);
 
         if (tx.getStatus() != TrangThaiThanhToan.FAILED) {
             throw new LoiNghiepVu(HttpStatus.CONFLICT, "PAYMENT_NOT_RETRYABLE", "Chỉ có thể thử lại khi giao dịch ở trạng thái FAILED.");
@@ -302,16 +294,42 @@ public class DichVuThanhToan {
         log.info("Da thuc hien hoan tien {} {} cho bookingId {}", tx.getAmount(), tx.getCurrency(), bookingId);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public TraVeGiaoDichThanhToan layTheoBookingId(Long bookingId, Long userId, String userRole) {
         GiaoDichThanhToan tx = khoGiaoDichThanhToan.findByBookingId(bookingId)
                 .orElseThrow(() -> new LoiNghiepVu(HttpStatus.NOT_FOUND, "PAYMENT_NOT_FOUND", "Chưa có giao dịch cho đơn đặt sân này."));
 
-        if (!"ADMIN".equals(userRole) && !tx.getCustomerId().equals(userId)) {
-            throw new LoiNghiepVu(HttpStatus.FORBIDDEN, "FORBIDDEN", "Bạn không có quyền xem giao dịch thanh toán này.");
-        }
+        kiemTraQuyenChuGiaoDich(tx, userId, userRole);
 
         return TraVeGiaoDichThanhToan.tuThucThe(tx);
+    }
+
+    public Long layHoacKhoiPhucCustomerId(GiaoDichThanhToan tx) {
+        if (tx.getCustomerId() != null && tx.getCustomerId() > 0) {
+            return tx.getCustomerId();
+        }
+        try {
+            TraVeThanhToanNoiBo bookingInfo = dichVuGoiDatSanNoiBo.layThongTinThanhToan(tx.getBookingId());
+            if (bookingInfo != null && bookingInfo.getCustomerId() != null && bookingInfo.getCustomerId() > 0) {
+                tx.setCustomerId(bookingInfo.getCustomerId());
+                khoGiaoDichThanhToan.save(tx);
+                log.info("Da tu dong khoi phuc customerId={} cho giao dich thanh toan #{}", bookingInfo.getCustomerId(), tx.getId());
+                return tx.getCustomerId();
+            }
+        } catch (Exception ex) {
+            log.warn("Khong the khoi phuc customerId tu booking #{}: {}", tx.getBookingId(), ex.getMessage());
+        }
+        return tx.getCustomerId() != null ? tx.getCustomerId() : 0L;
+    }
+
+    private void kiemTraQuyenChuGiaoDich(GiaoDichThanhToan tx, Long userId, String userRole) {
+        if ("ADMIN".equals(userRole)) {
+            return;
+        }
+        Long ownerId = layHoacKhoiPhucCustomerId(tx);
+        if (ownerId == null || ownerId <= 0 || !ownerId.equals(userId)) {
+            throw new LoiNghiepVu(HttpStatus.FORBIDDEN, "FORBIDDEN", "Bạn không có quyền thực hiện trên giao dịch thanh toán này.");
+        }
     }
 
     @Transactional(readOnly = true)

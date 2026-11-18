@@ -8,6 +8,7 @@ package com.sportbooking.bookingservice.thucthe;
 public enum TrangThaiDonDat {
     PENDING_PAYMENT,
     CONFIRMED,
+    CHECKED_IN,
     REFUND_PENDING,
     CANCELLED_REFUNDED,
     EXPIRED,

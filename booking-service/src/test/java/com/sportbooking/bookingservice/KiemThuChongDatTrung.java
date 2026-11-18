@@ -27,6 +27,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.Collections;
+import java.util.Map;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -56,6 +57,12 @@ public class KiemThuChongDatTrung {
     @Autowired
     private com.sportbooking.bookingservice.khodulieu.KhoTranhTrungYeuCau khoTranhTrungYeuCau;
 
+    @Autowired
+    private com.sportbooking.bookingservice.dieukhien.DieuKhienDatSan dieuKhienDatSan;
+
+    @Autowired
+    private com.sportbooking.bookingservice.khodulieu.KhoMaUuDai khoMaUuDai;
+
     @MockBean
     private DichVuGoiSanNoiBo dichVuGoiSanNoiBo;
 
@@ -82,9 +89,13 @@ public class KiemThuChongDatTrung {
         mockConfig.setCourtName("San Cau Long VIP 1");
         mockConfig.setCourtStatus("ACTIVE");
         mockConfig.setVenueId(1L);
+        mockConfig.setVenueName("Cum San Cau Long So 1");
+        mockConfig.setOwnerId(888L);
         mockConfig.setVenueStatus("ACTIVE");
         mockConfig.setBasePrice(new BigDecimal("100000.00"));
         mockConfig.setCurrency("VND");
+        mockConfig.setMinDurationMinutes(60);
+        mockConfig.setMaxDurationMinutes(720);
         mockConfig.setOpenTime(LocalTime.of(6, 0));
         mockConfig.setCloseTime(LocalTime.of(22, 0));
         mockConfig.setPriceRules(Collections.emptyList());
@@ -221,5 +232,168 @@ public class KiemThuChongDatTrung {
         assertNotNull(donC);
         assertEquals(LocalTime.of(9, 30), donC.getStartSlot());
         assertEquals(LocalTime.of(10, 30), donC.getEndSlot());
+    }
+
+    @Test
+    @DisplayName("Kiem tra: Check-in chuyen don sang CHECKED_IN va GIU NGUYEN khoa slot de chong dat trung")
+    void testCheckInChuyenTrangThaiVaGiuKhoaSlot() {
+        YeuCauDatSan req = new YeuCauDatSan();
+        req.setCourtId(1L);
+        req.setBookingDate(ngayThu);
+        req.setStartSlot(LocalTime.of(10, 0));
+        req.setDurationMinutes(60);
+
+        TraVeDonDatSan don = dichVuDatSan.taoDonDat(601L, req, "KEY-CHECKIN-1");
+        assertNotNull(don);
+
+        // Chuyen sang CONFIRMED (gia lap da thanh toan)
+        var entity = khoDonDatSan.findById(don.getId()).orElseThrow();
+        entity.setStatus(com.sportbooking.bookingservice.thucthe.TrangThaiDonDat.CONFIRMED);
+        khoDonDatSan.save(entity);
+
+        // Kiem tra khoa slot dang ton tai
+        assertEquals(2, khoKhoaKhungGio.findByCourtIdAndBookingDate(1L, ngayThu).size());
+
+        // Nhan vien quet ma check-in tai san
+        var token = don.getCheckinToken();
+        var resp = dieuKhienDatSan.quetMaCheckIn(Map.of("token", token), 999L, "STAFF");
+        assertTrue(resp.getStatusCode().is2xxSuccessful());
+
+        // Don dat phai chuyen sang CHECKED_IN va co checkedInAt
+        var donSauCheckin = khoDonDatSan.findById(don.getId()).orElseThrow();
+        assertEquals(com.sportbooking.bookingservice.thucthe.TrangThaiDonDat.CHECKED_IN, donSauCheckin.getStatus());
+        assertNotNull(donSauCheckin.getCheckedInAt());
+
+        // QUAN TRONG: Khoa slot VẪN PHẢI TỒN TẠI trong suot ca thi dau
+        assertEquals(2, khoKhoaKhungGio.findByCourtIdAndBookingDate(1L, ngayThu).size(),
+                "Active slot lock phai duoc bao toan trong thoi gian khach dang choi tai san");
+    }
+
+    @Test
+    @DisplayName("Kiem tra: Tra san chuyen COMPLETED va giai phong hoan toan khoa slot")
+    void testTraSanChuyenCompletedVaGiaiPhongKhoaSlot() {
+        YeuCauDatSan req = new YeuCauDatSan();
+        req.setCourtId(1L);
+        req.setBookingDate(ngayThu);
+        req.setStartSlot(LocalTime.of(12, 0));
+        req.setDurationMinutes(60);
+
+        TraVeDonDatSan don = dichVuDatSan.taoDonDat(701L, req, "KEY-TRASAN-1");
+
+        // Chuyen don sang CHECKED_IN
+        var entity = khoDonDatSan.findById(don.getId()).orElseThrow();
+        entity.setStatus(com.sportbooking.bookingservice.thucthe.TrangThaiDonDat.CHECKED_IN);
+        entity.setCheckedInAt(java.time.Instant.now());
+        khoDonDatSan.save(entity);
+
+        assertEquals(2, khoKhoaKhungGio.findByCourtIdAndBookingDate(1L, ngayThu).size());
+
+        // STAFF xac nhan tra san
+        var resp = dieuKhienDatSan.xacNhanTraSan(don.getId(), 999L, "STAFF");
+        assertTrue(resp.getStatusCode().is2xxSuccessful());
+
+        // Don dat chuyen sang COMPLETED
+        var donSauTraSan = khoDonDatSan.findById(don.getId()).orElseThrow();
+        assertEquals(com.sportbooking.bookingservice.thucthe.TrangThaiDonDat.COMPLETED, donSauTraSan.getStatus());
+
+        // Khoa slot da duoc giai phong hoan toan
+        assertEquals(0, khoKhoaKhungGio.findByCourtIdAndBookingDate(1L, ngayThu).size(),
+                "Active slot lock phai duoc xoa sau khi khach tra san");
+    }
+
+    @Test
+    @DisplayName("Kiem tra: Phan quyen tra san - Customer bi chan 403, Owner khac bi chan 403, Owner dung duoc phep")
+    void testPhanQuyenTraSan() {
+        YeuCauDatSan req = new YeuCauDatSan();
+        req.setCourtId(1L);
+        req.setBookingDate(ngayThu);
+        req.setStartSlot(LocalTime.of(14, 0));
+        req.setDurationMinutes(60);
+
+        TraVeDonDatSan don = dichVuDatSan.taoDonDat(801L, req, "KEY-AUTH-1");
+        var entity = khoDonDatSan.findById(don.getId()).orElseThrow();
+        entity.setStatus(com.sportbooking.bookingservice.thucthe.TrangThaiDonDat.CHECKED_IN);
+        khoDonDatSan.save(entity);
+
+        // 1. Chinh khach hang (Customer) khong duoc phep tu y tra san -> Bi chan 403
+        LoiNghiepVu exCustomer = assertThrows(LoiNghiepVu.class, () -> {
+            dieuKhienDatSan.xacNhanTraSan(don.getId(), 801L, "CUSTOMER");
+        });
+        assertEquals(HttpStatus.FORBIDDEN, exCustomer.getStatus());
+
+        // 2. Owner cua co so khac (ownerId=777) khong duoc tac dong don cua co so nay (ownerId=888) -> Bi chan 403
+        LoiNghiepVu exWrongOwner = assertThrows(LoiNghiepVu.class, () -> {
+            dieuKhienDatSan.xacNhanTraSan(don.getId(), 777L, "OWNER");
+        });
+        assertEquals(HttpStatus.FORBIDDEN, exWrongOwner.getStatus());
+
+        // 3. Dung Owner cua co so nay (ownerId=888) -> Thanh cong 200 OK
+        var respOwner = dieuKhienDatSan.xacNhanTraSan(don.getId(), 888L, "OWNER");
+        assertTrue(respOwner.getStatusCode().is2xxSuccessful());
+    }
+
+    @Test
+    @DisplayName("Kiem tra: Preview voucher giam tien co dinh THETHAO50 phai giam dung 50k")
+    void testPreviewVoucherGiamTienCoDinh() {
+        // Luu voucher THETHAO50: discountAmount = 50.000, discountPercent = 0, minOrder = 100.000
+        var v = com.sportbooking.bookingservice.thucthe.MaUuDai.builder()
+                .code("THETHAO50")
+                .description("Giam ngay 50.000d cho don tu 100k")
+                .discountPercent(0)
+                .discountAmount(new BigDecimal("50000.00"))
+                .minOrderAmount(new BigDecimal("100000.00"))
+                .active(true)
+                .build();
+        khoMaUuDai.save(v);
+
+        // San co basePrice = 100.000/h. Khung gio 08:00 (khong phai gio vang). Don 120 phut = 200.000d
+        YeuCauDatSan req = new YeuCauDatSan();
+        req.setCourtId(1L);
+        req.setBookingDate(ngayThu);
+        req.setStartSlot(LocalTime.of(8, 0));
+        req.setDurationMinutes(120);
+        req.setVoucherCode("THETHAO50");
+
+        var preview = dichVuDatSan.tinhBaoGiaTruoc(req);
+        assertNotNull(preview);
+        assertEquals(new BigDecimal("200000.00"), preview.getTotalCourtPrice());
+        assertEquals(new BigDecimal("50000.00"), preview.getDiscountAmount());
+        assertEquals(new BigDecimal("150000.00"), preview.getFinalAmount());
+        assertEquals("Cum San Cau Long So 1", preview.getVenueName());
+
+        // Tao don thuc te cung payload: phai khop 100% ve so tien
+        var donThucTe = dichVuDatSan.taoDonDat(901L, req, "KEY-PREVIEW-MATCH");
+        assertEquals(new BigDecimal("150000.00"), donThucTe.getTotalAmount(),
+                "Tien cua don thuc te phai khop 100% voi bao gia preview");
+    }
+
+    @Test
+    @DisplayName("Kiem tra: Preview validate thoi luong va gio hoat dong")
+    void testPreviewValidateThoiLuongVaGioHoatDong() {
+        // Thoi luong 30 phut trong khi minDuration cua san la 60 phut -> Phai nem 400 DURATION_OUT_OF_RANGE
+        YeuCauDatSan reqNgan = new YeuCauDatSan();
+        reqNgan.setCourtId(1L);
+        reqNgan.setBookingDate(ngayThu);
+        reqNgan.setStartSlot(LocalTime.of(8, 0));
+        reqNgan.setDurationMinutes(30);
+
+        LoiNghiepVu exNgan = assertThrows(LoiNghiepVu.class, () -> {
+            dichVuDatSan.tinhBaoGiaTruoc(reqNgan);
+        });
+        assertEquals(HttpStatus.BAD_REQUEST, exNgan.getStatus());
+        assertEquals("DURATION_OUT_OF_RANGE", exNgan.getCode());
+
+        // Khung gio vuot qua gio dong cua 22:00 -> Nem 409 OUT_OF_OPERATING_HOURS
+        YeuCauDatSan reqMuon = new YeuCauDatSan();
+        reqMuon.setCourtId(1L);
+        reqMuon.setBookingDate(ngayThu);
+        reqMuon.setStartSlot(LocalTime.of(21, 30));
+        reqMuon.setDurationMinutes(60);
+
+        LoiNghiepVu exMuon = assertThrows(LoiNghiepVu.class, () -> {
+            dichVuDatSan.tinhBaoGiaTruoc(reqMuon);
+        });
+        assertEquals(HttpStatus.CONFLICT, exMuon.getStatus());
+        assertEquals("OUT_OF_OPERATING_HOURS", exMuon.getCode());
     }
 }

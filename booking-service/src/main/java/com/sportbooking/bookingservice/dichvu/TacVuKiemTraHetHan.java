@@ -47,13 +47,15 @@ public class TacVuKiemTraHetHan {
             dichVuGoiThanhToanNoiBo.tuChoiThanhToan(booking.getId(), "EXPIRED");
         }
 
-        // 2. Quet cac don CONFIRMED ma gio choi da ket thuc -> chuyen sang COMPLETED
+        // 2. Quet cac don CONFIRMED hoac CHECKED_IN ma gio choi da ket thuc -> chuyen sang COMPLETED
         LocalDate today = LocalDate.now(ZONE_VN);
-        List<DonDatSan> confirmedList = khoDonDatSan.findByStatusAndBookingDateLessThanEqual(TrangThaiDonDat.CONFIRMED, today);
-        for (DonDatSan booking : confirmedList) {
+        List<DonDatSan> activeList = new java.util.ArrayList<>();
+        activeList.addAll(khoDonDatSan.findByStatusAndBookingDateLessThanEqual(TrangThaiDonDat.CONFIRMED, today));
+        activeList.addAll(khoDonDatSan.findByStatusAndBookingDateLessThanEqual(TrangThaiDonDat.CHECKED_IN, today));
+        for (DonDatSan booking : activeList) {
             LocalDateTime endDt = LocalDateTime.of(booking.getBookingDate(), booking.getEndSlot());
             if (endDt.atZone(ZONE_VN).toInstant().isBefore(now)) {
-                log.info("Don dat {} da ket thuc gio choi. Chuyen sang COMPLETED.", booking.getId());
+                log.info("Don dat {} da ket thuc gio choi. Chuyen sang COMPLETED va giai phong khoa slot.", booking.getId());
                 booking.setStatus(TrangThaiDonDat.COMPLETED);
                 khoDonDatSan.save(booking);
                 khoKhoaKhungGio.deleteByBookingId(booking.getId());

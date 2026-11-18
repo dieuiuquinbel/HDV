@@ -7,7 +7,6 @@ COPY court-service/pom.xml court-service/
 COPY booking-service/pom.xml booking-service/
 COPY payment-service/pom.xml payment-service/
 COPY notification-service/pom.xml notification-service/
-COPY review-service/pom.xml review-service/
 COPY booking-service/src booking-service/src
 RUN apk add --no-cache maven && mvn clean package -pl booking-service -am -DskipTests
 

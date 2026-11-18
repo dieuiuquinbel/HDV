@@ -1,6 +1,6 @@
 # ESportKing / Sport Booking — hướng dẫn chạy
 
-Cập nhật tài liệu: **13/11/2026**. Java 21, Spring Boot 3.3.2, MySQL 8.0, React 18 và Vite.
+Cập nhật tài liệu: **17/11/2026**. Java 21, Spring Boot 3.3.2, MySQL 8.0, React 18 và Vite.
 
 ## Đọc tài liệu
 
@@ -24,7 +24,6 @@ Giữ giao diện hiện tại; giai đoạn tiếp theo ưu tiên logic và d�
 | Booking | 8083 | booking_db |
 | Payment | 8084 | payment_db |
 | Notification | 8085 | notification_db |
-| Review | 8086 | review_db |
 
 Cần JDK **21**, Node.js/npm, MySQL 8.0; cần Docker Compose nếu chọn chạy container. `mvnw.cmd` hiện ưu tiên đường Maven trên máy tác giả rồi gọi `mvn` trong PATH; đây chưa phải wrapper tự tải Maven dùng chung cho mọi máy.
 
@@ -34,7 +33,7 @@ Cấu hình local được đọc từ `application.yml` của từng service v�
 - Có thể ghi đè `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD` khi chạy riêng từng service.
 - Script nạp các biến trong `.env` theo đúng tên; nó không tự chuyển `MYSQL_PASSWORD` thành `SPRING_DATASOURCE_PASSWORD` cho Java. Compose có khai báo ánh xạ riêng.
 - OTP dùng `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`. Khi chưa cấu hình SMTP, mã hiện ghi OTP trong log chế độ thử; mặc định không trả OTP trong HTTP response.
-- Flyway quản lý schema. Review V2 từng đổi nội dung: với DB đã dùng bản V2 cũ, cần kiểm tra `flyway_schema_history` trước nâng cấp; không tự repair hoặc xóa dữ liệu để bỏ qua lỗi checksum.
+- Flyway tự động quản lý schema cho 5 database nghiệp vụ khi service khởi động.
 
 ## 2. Chạy local bằng Windows
 
@@ -49,7 +48,13 @@ Mở thư mục gốc dự án và chạy `run_all.bat`. Script kiểm tra Java/
 
 Chờ cổng Gateway mở chỉ là kiểm tra tiến trình lắng nghe, chưa chứng minh toàn bộ service sẵn sàng. Khi lỗi, xem `logs/` và endpoint `/actuator/health` của service local tương ứng. Không chạy script nhiều lần khi các tiến trình cũ còn chiếm cổng.
 
-Dừng frontend bằng `Ctrl+C`; backend chạy nền cần dừng riêng đúng tiến trình Java của dự án (qua Task Manager hoặc terminal khởi chạy). Đóng cửa sổ frontend không tự dừng toàn bộ backend.
+Dừng frontend bằng `Ctrl+C`; để dừng sạch toàn bộ 6 service backend đang chạy nền và giải phóng các cổng 8080-8085, chỉ cần chạy script `stop_all.bat`:
+
+```powershell
+.\stop_all.bat
+```
+
+Script sẽ tự động tìm và kết thúc nhanh các tiến trình đang chiếm cổng của hệ thống, giúp bạn có thể chạy lại `run_all.bat` bất cứ lúc nào mà không lo bị lỗi xung đột cổng.
 
 ## 3. Chạy Docker Compose
 
@@ -59,7 +64,7 @@ docker compose logs -f
 docker compose down
 ```
 
-Frontend: `http://localhost:5173`; Gateway: `http://localhost:8080/api/v1`. Compose dùng một MySQL container với sáu schema riêng, init script tại `docker/mysql/init.sql`. Init script chỉ chạy khi khởi tạo volume MySQL mới. Script SQL hiện gán cứng mật khẩu sport_user là 123456; nếu đổi MYSQL_PASSWORD phải đối chiếu tài khoản DB và cấu hình kết nối, không chỉ đổi .env. Không dùng `down -v` nếu cần giữ dữ liệu.
+Frontend: `http://localhost:5173`; Gateway: `http://localhost:8080/api/v1`. Compose dùng một MySQL container với 5 schema riêng (`user_db`, `court_db`, `booking_db`, `payment_db`, `notification_db`), init script tại `docker/mysql/init.sql`. Init script chỉ chạy khi khởi tạo volume MySQL mới. Script SQL hiện gán cứng mật khẩu sport_user là 123456; nếu đổi MYSQL_PASSWORD phải đối chiếu tài khoản DB và cấu hình kết nối, không chỉ đổi .env. Không dùng `down -v` nếu cần giữ dữ liệu.
 
 Đường chạy Docker và migration trên DB sạch cần được kiểm chứng theo [Program.md](Program.md); tài liệu này không tuyên bố đã chạy thành công trên máy mới.
 
@@ -89,6 +94,10 @@ cd frontend
 npm run build
 ```
 
-Các lệnh trên kiểm tra biên dịch/build, không xác nhận nghiệp vụ. **Chưa chạy `mvnw.cmd test` trên DB phát triển:** `KiemThuChongDatTrung.setupMock()` gọi `deleteAll()` và lớp test chưa có datasource riêng. Chỉ chạy sau khi cách ly DB test theo Program.
+Các lệnh trên kiểm tra biên dịch/build. Bộ kiểm thử tự động của Booking Service đã được cách ly hoàn toàn sang H2 in-memory DB (`jdbc:h2:mem:booking_test_db`), an toàn 100% khi chạy:
 
-Đợt cập nhật 13/11 chỉ đọc mã và chỉnh Markdown; không chạy build, test, migration hay giao dịch. Kết quả build ngày 10/11 được giữ trong tài liệu lịch sử, không dùng thay bằng chứng kiểm chứng hiện tại.
+```powershell
+.\mvnw.cmd test -pl booking-service
+```
+
+Bộ test bao gồm 9 test case tự động (PASS 9/9) kiểm tra: chống đặt trùng slot, tính idempotency, concurrency 2 luồng, đặt sân 90 phút, check-in chuyển CHECKED_IN giữ slot lock, trả sân COMPLETED giải phóng lock, phân quyền OWNER/STAFF/CUSTOMER, preview voucher giảm tiền cố định THETHAO50 và validation thời lượng/giờ hoạt động.

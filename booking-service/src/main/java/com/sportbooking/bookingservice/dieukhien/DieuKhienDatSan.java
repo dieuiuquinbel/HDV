@@ -27,6 +27,7 @@ import org.springframework.web.bind.annotation.*;
 import com.sportbooking.bookingservice.khodulieu.KhoKhoaKhungGio;
 
 import java.time.LocalDate;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -171,13 +172,13 @@ public class DieuKhienDatSan {
             return ResponseEntity.ok(ketQua);
         }
 
-        // Khi nhan vien hoac Admin quet check-in thanh cong, cap nhat trang thai don sang COMPLETED (Da nhan san thi dau)
+        // Khi nhan vien hoac Admin/Owner quet check-in thanh cong, cap nhat trang thai don sang CHECKED_IN
+        // LUU Y QUAN TRONG: GIU NGUYEN KHOA SLOT (active_slot_locks) trong suot ca thi dau de chong dat trung
         if ("ADMIN".equals(userRole) || "STAFF".equals(userRole) || "OWNER".equals(userRole)) {
             khoDonDatSan.findById(targetBookingId).ifPresent(b -> {
-                b.setStatus(com.sportbooking.bookingservice.thucthe.TrangThaiDonDat.COMPLETED);
+                b.setStatus(com.sportbooking.bookingservice.thucthe.TrangThaiDonDat.CHECKED_IN);
+                b.setCheckedInAt(java.time.Instant.now());
                 khoDonDatSan.save(b);
-                // Giai phong khoa slot lock ngay khi khach check-in thanh cong
-                khoKhoaKhungGio.deleteByBookingId(b.getId());
                 try {
                     dichVuGoiThongBaoNoiBo.guiThongBao(b.getCustomerId(),
                             "Check-in nhận sân thành công đơn đặt #" + b.getId(),
@@ -211,9 +212,40 @@ public class DieuKhienDatSan {
         com.sportbooking.bookingservice.thucthe.DonDatSan don = khoDonDatSan.findById(id)
                 .orElseThrow(() -> new LoiNghiepVu(HttpStatus.NOT_FOUND, "BOOKING_NOT_FOUND", "Không tìm thấy thông tin đơn đặt sân trong hệ thống."));
 
+        if (!"ADMIN".equals(userRole) && !"STAFF".equals(userRole) && !"OWNER".equals(userRole)) {
+            throw new LoiNghiepVu(HttpStatus.FORBIDDEN, "FORBIDDEN", "Chỉ nhân viên trực ban, chủ sân hoặc quản trị viên mới có quyền xác nhận trả sân.");
+        }
+
+        if ("OWNER".equals(userRole)) {
+            try {
+                var config = dichVuGoiSanNoiBo.layCauHinhSan(don.getCourtId(), don.getBookingDate());
+                if (config == null || config.getOwnerId() == null || !userId.equals(config.getOwnerId())) {
+                    throw new LoiNghiepVu(HttpStatus.FORBIDDEN, "FORBIDDEN", "Bạn không có quyền quản lý đơn đặt của cơ sở này.");
+                }
+            } catch (LoiNghiepVu ln) {
+                throw ln;
+            } catch (Exception ex) {
+                throw new LoiNghiepVu(HttpStatus.FORBIDDEN, "FORBIDDEN", "Không thể xác minh quyền chủ sở hữu cho cơ sở này.");
+            }
+        }
+
+        if (don.getStatus() == com.sportbooking.bookingservice.thucthe.TrangThaiDonDat.COMPLETED) {
+            Map<String, Object> ketQua = new HashMap<>();
+            ketQua.put("success", true);
+            ketQua.put("message", "Đơn đặt sân này đã hoàn tất trước đó.");
+            ketQua.put("bookingId", id);
+            ketQua.put("status", "COMPLETED");
+            return ResponseEntity.ok(ketQua);
+        }
+
+        if (don.getStatus() != com.sportbooking.bookingservice.thucthe.TrangThaiDonDat.CHECKED_IN &&
+            don.getStatus() != com.sportbooking.bookingservice.thucthe.TrangThaiDonDat.CONFIRMED) {
+            throw new LoiNghiepVu(HttpStatus.BAD_REQUEST, "INVALID_STATUS", "Không thể xác nhận trả sân cho đơn ở trạng thái: " + don.getStatus());
+        }
+
         don.setStatus(com.sportbooking.bookingservice.thucthe.TrangThaiDonDat.COMPLETED);
         khoDonDatSan.save(don);
-        // Giai phong khoa slot lock khi hoan tat ca thi dau
+        // Giai phong khoa slot lock khi da hoan tat ca thi dau / tra san
         khoKhoaKhungGio.deleteByBookingId(don.getId());
 
         try {
@@ -238,16 +270,48 @@ public class DieuKhienDatSan {
     @GetMapping("/bookings/station")
     public ResponseEntity<List<Map<String, Object>>> layDanhSachDonTheoTram(
             @RequestParam(required = false) Long venueId,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestHeader(value = "X-User-Id", required = false) Long userId,
+            @RequestHeader(value = "X-User-Role", required = false) String userRole) {
+
+        if (!"ADMIN".equals(userRole) && !"STAFF".equals(userRole) && !"OWNER".equals(userRole)) {
+            throw new LoiNghiepVu(HttpStatus.FORBIDDEN, "FORBIDDEN", "Chỉ nhân viên trực ban hoặc quản trị viên mới có quyền xem danh sách đơn theo trạm.");
+        }
 
         LocalDate targetDate = date != null ? date : LocalDate.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh"));
         List<com.sportbooking.bookingservice.thucthe.DonDatSan> list = khoDonDatSan.findByBookingDate(targetDate);
-        if (list == null || list.isEmpty()) {
-            list = khoDonDatSan.findAll(Sort.by(Sort.Direction.DESC, "id")).stream().limit(15).toList();
+        if (list == null) {
+            list = Collections.emptyList();
         }
 
         List<Map<String, Object>> res = new java.util.ArrayList<>();
         for (var b : list) {
+            Long bVenueId = null;
+            Long bOwnerId = null;
+            String bCourtName = null;
+            try {
+                var config = dichVuGoiSanNoiBo.layCauHinhSan(b.getCourtId(), b.getBookingDate());
+                if (config != null) {
+                    bCourtName = config.getCourtName();
+                    bVenueId = config.getVenueId();
+                    bOwnerId = config.getOwnerId();
+                }
+            } catch (Exception ignored) {}
+
+            // Neu loc theo venueId cu the: LOAI BO cac don chua xac dinh duoc co so hoac khong khop
+            if (venueId != null) {
+                if (bVenueId == null || !venueId.equals(bVenueId)) {
+                    continue;
+                }
+            }
+
+            // Neu la OWNER: Chi duoc phep xem don thuoc co so do chinh minh so huu
+            if ("OWNER".equals(userRole)) {
+                if (bOwnerId == null || !bOwnerId.equals(userId)) {
+                    continue;
+                }
+            }
+
             Map<String, Object> item = new HashMap<>();
             item.put("id", b.getId());
             item.put("customerId", b.getCustomerId());
@@ -257,16 +321,17 @@ public class DieuKhienDatSan {
             item.put("endSlot", b.getEndSlot().toString());
             item.put("totalAmount", b.getTotalAmount());
             item.put("status", b.getStatus().name());
-            try {
-                var config = dichVuGoiSanNoiBo.layCauHinhSan(b.getCourtId(), b.getBookingDate());
-                if (config != null) {
-                    item.put("courtName", config.getCourtName());
-                    item.put("venueId", config.getVenueId());
-                }
-            } catch (Exception ignored) {}
+            item.put("courtName", bCourtName);
+            item.put("venueId", bVenueId);
             res.add(item);
         }
         return ResponseEntity.ok(res);
+    }
+
+    @PostMapping("/bookings/preview")
+    public ResponseEntity<com.sportbooking.bookingservice.dulieu.TraVeBaoGiaDatSan> tinhBaoGia(
+            @Valid @RequestBody YeuCauDatSan yeuCau) {
+        return ResponseEntity.ok(dichVuDatSan.tinhBaoGiaTruoc(yeuCau));
     }
 
     @GetMapping("/admin/bookings")

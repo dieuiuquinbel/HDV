@@ -1,31 +1,34 @@
 /**
- * File: coSoSportKing.js
- * Muc dich: Dinh nghia thong tin 3 co so the thao ESportKing Ha Noi va cac bien the loai san con.
+ * File: coSoSportKing.jsx
+ * Mục đích: Định nghĩa thông tin 3 cơ sở chuẩn và 10 phân loại sân thực tế của hệ thống eSportKing tại Hà Nội.
  */
 import React from 'react';
 import { Flame, Zap, Trophy } from 'lucide-react';
 
 export const THONG_TIN_CO_SO = {
   1: {
+    id: 1,
     ten: 'CƠ SỞ 1 • CẦU GIẤY',
     tenDayDu: 'Trung Tâm Thể Thao eSportKing - Cơ Sở 1 (Cầu Giấy)',
-    diaChi: 'Số 18 Duy Tân, Phường Dịch Vọng Hậu, Quận Cầu Giấy, Hà Nội',
+    diaChi: 'Số 18 Phố Duy Tân, Phường Dịch Vọng Hậu, Quận Cầu Giấy, Hà Nội',
     hotline: '0981.234.567',
     badgeClass: 'bg-gradient-to-r from-rose-600 to-red-500 text-white',
     icon: <Flame className="w-3.5 h-3.5 fill-white text-white" />
   },
   2: {
+    id: 2,
     ten: 'CƠ SỞ 2 • ĐỐNG ĐA',
     tenDayDu: 'Trung Tâm Thể Thao eSportKing - Cơ Sở 2 (Đống Đa)',
-    diaChi: 'Số 102 Trường Chinh, Phường Phương Mai, Quận Đống Đa, Hà Nội',
+    diaChi: 'Số 102 Phố Trường Chinh, Phường Phương Mai, Quận Đống Đa, Hà Nội',
     hotline: '0982.345.678',
     badgeClass: 'bg-gradient-to-r from-amber-500 to-orange-500 text-white',
     icon: <Zap className="w-3.5 h-3.5 fill-white text-white" />
   },
   3: {
-    ten: 'CƠ SỞ 3 • HÀ ĐÔNG - LONG BIÊN',
-    tenDayDu: 'Trung Tâm Thể Thao eSportKing - Cơ Sở 3 (Hà Đông / Long Biên)',
-    diaChi: 'Số 27 Đường Cổ Linh, Phường Long Biên & Quang Trung, Hà Đông, Hà Nội',
+    id: 3,
+    ten: 'CƠ SỞ 3 • HÀ ĐÔNG',
+    tenDayDu: 'Trung Tâm Thể Thao eSportKing - Cơ Sở 3 (Hà Đông)',
+    diaChi: 'Số 27 Đường Quang Trung, Phường Quang Trung, Quận Hà Đông, Hà Nội',
     hotline: '0983.456.789',
     badgeClass: 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white',
     icon: <Trophy className="w-3.5 h-3.5 text-white" />
@@ -35,45 +38,34 @@ export const THONG_TIN_CO_SO = {
 export const BIEN_THE_SAN_CON = {
   FOOTBALL: {
     '5': [
-      { id: 101, name: 'Sân 5-A1 (Cỏ Nhân Tạo Tiêu Chuẩn)', surface: 'Cỏ nhân tạo 5cm ngoài trời', price: 200000, tag: 'TIẾT KIỆM', icon: '🌱', desc: 'Mặt cỏ sợi đúc mềm, hạt cao su đàn hồi êm chân, phù hợp giao lưu phong trào' },
-      { id: 102, name: 'Sân 5-A2 (Có Mái Vòm Che Mưa Nắng)', surface: 'Mái vòm khung thép 12m', price: 260000, tag: 'HOT NHẤT 🔥', icon: '🏛️', desc: 'Mái vòm cách nhiệt cao ráo, thi đấu bất chấp mưa bão hay nắng gắt' },
-      { id: 103, name: 'Sân 5-A3 (Cỏ FIFA Pro Kim Cương)', surface: 'Cỏ sợi gân kim cương', price: 290000, tag: 'CAO CẤP ⭐', icon: '💎', desc: 'Chuẩn FIFA Quality Pro, chống trượt lật sơ cổ chân, bóng lăn êm ái' },
-      { id: 104, name: 'Sân 5-A4 (Sân Futsal Nền Đệm Silicon PU)', surface: 'Nền đệm Silicon giảm chấn', price: 220000, tag: 'FUTSAL', icon: '👟', desc: 'Sân phẳng lì độ nảy chuẩn, bảo vệ khớp gối, bóng lăn tốc độ cao' }
+      { id: 101, code: '5_TURF', name: 'Sân 5 Người (Cỏ Nhân Tạo Tiêu Chuẩn)', surface: 'Cỏ nhân tạo 5cm có mái vòm', price: 200000, tag: 'TIÊU CHUẨN', icon: '🌱', desc: 'Mặt cỏ sợi đúc mềm, đàn hồi êm chân, có mái vòm che nắng mưa', image: '/images/courts/football/football_5_cs1.jpg' },
+      { id: 102, code: '5_PRO', name: 'Sân 5 Người (Cỏ FIFA Pro Chống Trượt)', surface: 'Cỏ sợi kim cương FIFA Pro', price: 220000, tag: 'HOT NHẤT 🔥', icon: '💎', desc: 'Chuẩn FIFA Pro, chống lật sơ cổ chân, đèn LED 500 Lux', image: '/images/courts/football/football_5_cs2.jpg' }
     ],
     '7': [
-      { id: 201, name: 'Sân 7-B1 (Cỏ Nhân Tạo Tiêu Chuẩn)', surface: 'Cỏ nhân tạo 7 người ngoài trời', price: 350000, tag: 'PHỔ BIẾN', icon: '🌱', desc: 'Kích thước tiêu chuẩn 30m x 50m, thoát nước ngầm cực tốt khi mưa' },
-      { id: 202, name: 'Sân 7-B2 (Có Mái Vòm Che Toàn Phần)', surface: 'Mái vòm che phủ 100%', price: 450000, tag: 'KHUYÊN DÙNG 🌟', icon: '🏛️', desc: 'Khung vòm thép hiện đại, thoáng gió 4 phía, không bao giờ lo hoãn trận vì thời tiết' },
-      { id: 203, name: 'Sân 7-B3 (Cỏ FIFA Pro Khán Đài VIP)', surface: 'Cỏ FIFA Pro sợi kim cương', price: 490000, tag: 'ĐẲNG CẤP', icon: '💎', desc: 'Sân trung tâm có khán đài có mái, ghế đệm cabin HLV và camera AI quay bàn thắng' },
-      { id: 204, name: 'Sân 7-B4 (Sân Đệm Silicon Đa Năng)', surface: 'Mặt nền Silicon PU chống trầy', price: 330000, tag: 'ĐA NĂNG', icon: '👟', desc: 'Thi đấu tốc độ cao, vạch vôi sắc nét, hệ thống đèn chiếu sáng cao cấp' }
+      { id: 201, code: '7_TURF', name: 'Sân 7 Người (Cỏ FIFA Pro Tiêu Chuẩn)', surface: 'Cỏ FIFA Pro sợi kim cương', price: 350000, tag: 'PHỔ BIẾN ⭐', icon: '🌱', desc: 'Kích thước 30m x 50m, thoát nước ngầm cực tốt, cabin ban huấn luyện', image: '/images/courts/football/football_7_cs1.jpg' },
+      { id: 202, code: '7_ROOF', name: 'Sân 7 Người (Mái Vòm Che Toàn Phần)', surface: 'Mái vòm thép che phủ 100%', price: 400000, tag: 'MÁI CHE 🏛️', icon: '🏛️', desc: 'Mái vòm cao 14m thoáng gió, thi đấu bất chấp thời tiết mưa nắng', image: '/images/courts/football/football_7_cs3.jpg' }
     ],
     '11': [
-      { id: 301, name: 'Sân 11-C1 (Cỏ Tự Nhiên Chuẩn Quốc Gia)', surface: 'Cỏ tự nhiên Bermuda mịn màng', price: 650000, tag: 'QUỐC GIA', icon: '🌾', desc: 'Kích thước 68m x 105m, cỏ tự nhiên cắt tỉa định kỳ, mặt sân phẳng chuẩn thi đấu' },
-      { id: 302, name: 'Sân 11-C2 (Cỏ FIFA Pro Khán Đài 500 Chỗ)', surface: 'Cỏ nhân tạo FIFA Quality Pro', price: 750000, tag: 'TRUNG TÂM 🔥', icon: '🏟️', desc: 'Khán đài 500 chỗ ngồi có mái, 8 cột đèn cao áp 1000 Lux, cabin HLV 2 đội' },
-      { id: 303, name: 'Sân 11-C3 (Sân Có Mái Vòm Khung Thép Lớn)', surface: 'Vòm thép khổng lồ cách nhiệt', price: 850000, tag: 'VIP ĐẶC BIỆT', icon: '🏛️', desc: 'Tổ hợp sân 11 có mái che quy mô hiếm có tại Hà Nội, thi đấu giải đấu bất chấp thời tiết' }
+      { id: 301, code: '11_GRASS', name: 'Sân 11 Người (Cỏ Tự Nhiên Chuẩn FIFA)', surface: 'Cỏ tự nhiên Bermuda mịn màng', price: 650000, tag: 'CHUẨN QUỐC TẾ', icon: '🌾', desc: 'Kích thước 68m x 105m, cỏ tự nhiên cắt tỉa định kỳ, dàn đèn 1000 Lux', image: '/images/courts/football/football_11_cs1.jpg' }
     ]
   },
   BADMINTON: {
     default: [
-      { id: 401, name: 'Sân Cầu Lông A1 (Thảm PVC BWF Tiêu Chuẩn)', surface: 'Thảm PVC vân cát 4.5mm', price: 100000, tag: 'TIÊU CHUẨN', icon: '🏸', desc: 'Đạt chuẩn Liên đoàn Cầu lông Thế giới BWF, chống trơn trượt' },
-      { id: 402, name: 'Sân Cầu Lông A2 (Thảm Yonex Thi Đấu Đỉnh Cao)', surface: 'Thảm Yonex Super Series', price: 125000, tag: 'THI ĐẤU 🌟', icon: '🥇', desc: 'Độ đàn hồi cực êm bảo vệ khớp gối, đèn chiếu viền không gây chói mắt khi ngửa mặt' },
-      { id: 403, name: 'Sân Cầu Lông A3 (Sàn Gỗ Tự Nhiên Giảm Chấn)', surface: 'Sàn gỗ phong Bắc Mỹ', price: 135000, tag: 'SÀN GỖ VIP', icon: '🪵', desc: 'Hệ thống đệm cao su giảm chấn tối đa, chống sốc tuyệt hảo cho vận động viên' },
-      { id: 404, name: 'Sân Cầu Lông A4 (Phòng VIP Điều Hòa Kín Gió)', surface: 'Thảm Yonex + Điều hòa', price: 160000, tag: 'VIP ĐIỀU HÒA', icon: '❄️', desc: 'Không gian kín gió 100%, đường cầu bay chuẩn xác, điều hòa mát rượi dễ chịu' }
-    ]
-  },
-  TENNIS: {
-    default: [
-      { id: 501, name: 'Sân Tennis D1 (Mặt Cứng Decoturf US Open)', surface: 'Sơn Decoturf 9 lớp chuẩn Mỹ', price: 190000, tag: 'US OPEN', icon: '🎾', desc: 'Độ nảy bóng chuẩn xác, tốc độ trung bình nhanh, lưới thi đấu chuyên nghiệp' },
-      { id: 502, name: 'Sân Tennis D2 (Sân Đất Nện Roland Garros)', surface: 'Đất nện đỏ nhập khẩu', price: 240000, tag: 'ĐẤT NỆN 🔥', icon: '🧱', desc: 'Mặt sân trượt êm chân, độ nảy bóng chậm giúp đánh bền bỉ và bảo vệ khớp cổ chân' },
-      { id: 503, name: 'Sân Tennis D3 (Có Mái Che Mưa Nắng Toàn Phần)', surface: 'Mái vòm thép + Decoturf', price: 280000, tag: 'MÁI CHE 🌟', icon: '🏛️', desc: 'Không lo thời tiết, quạt công nghiệp mát rượi, ánh sáng LED chống bóng đổ' },
-      { id: 504, name: 'Sân Tennis D4 (Sân Trung Tâm Khán Đài & Đèn 1000 Lux)', surface: 'Decoturf + Khán đài', price: 320000, tag: 'TRUNG TÂM', icon: '🏆', desc: 'Sân trung tâm tổ chức giải đấu, có ghế trọng tài cao và dàn đèn pha cao áp' }
+      { id: 401, code: 'BADMINTON_PVC', name: 'Sân Cầu Lông (Thảm PVC BWF Standard)', surface: 'Thảm PVC vân cát chống trượt 4.5mm', price: 100000, tag: 'TIÊU CHUẨN', icon: '🏸', desc: 'Chuẩn Liên đoàn BWF, quạt hút thông gió, hỗ trợ đánh Đơn 1v1 & Đôi 2v2', image: '/images/courts/badminton/badminton_pvc_cs1.jpg', formats: ['Đơn (1v1)', 'Đôi (2v2)'] },
+      { id: 402, code: 'BADMINTON_PRO', name: 'Sân Cầu Lông (Thảm Yonex Pro Cao Cấp)', surface: 'Thảm Yonex Super Series giảm chấn', price: 120000, tag: 'THI ĐẤU PRO 🌟', icon: '🥇', desc: 'Đàn hồi cực êm bảo vệ khớp gối, đèn viền không chói mắt, hỗ trợ Đơn & Đôi', image: '/images/courts/badminton/badminton_pro_cs1.jpg', formats: ['Đơn (1v1)', 'Đôi (2v2)'] }
     ]
   },
   BASKETBALL: {
     default: [
-      { id: 601, name: 'Sân Bóng Rổ E1 (Nửa Sân 3x3 Streetball Ngoài Trời)', surface: 'Bề mặt sơn Acrylic chống trượt', price: 150000, tag: 'STREETBALL', icon: '🏀', desc: 'Nửa sân tiêu chuẩn 3x3, bảng kính cường lực đàn hồi, loa phát nhạc sôi động' },
-      { id: 602, name: 'Sân Bóng Rổ E2 (Toàn Sân 5x5 Đệm Silicon PU)', surface: 'Đệm Silicon PU 8mm giảm chấn', price: 280000, tag: '5X5 TIÊU CHUẨN', icon: '👟', desc: 'Toàn sân 28m x 15m, trụ rổ thủy lực di động chuẩn FIBA, độ bám giày cực cao' },
-      { id: 603, name: 'Sân Bóng Rổ E3 (Sàn Gỗ Trong Nhà Chuẩn FIBA)', surface: 'Sàn gỗ Maple chuyên nghiệp', price: 380000, tag: 'FIBA VIP 🌟', icon: '🪵', desc: 'Sàn gỗ bóng loáng chuẩn giải nhà nghề VBA, điều hòa mát mẻ, bảng điểm điện tử' },
-      { id: 604, name: 'Sân Bóng Rổ E4 (Sân VIP Bảng Điểm Điện Tử 24s)', surface: 'Sàn gỗ + Đồng hồ 24 giây', price: 420000, tag: 'ĐẤU GIẢI', icon: '⏱️', desc: 'Bộ đồ nghề tính điểm và đếm ngược 24s bài bản, có phòng thay đồ và tắm nóng lạnh' }
+      { id: 601, code: 'BASKETBALL_5X5_WOOD', name: 'Sân Bóng Rổ (Toàn Sân 5v5 Sàn Gỗ FIBA)', surface: 'Sàn gỗ Maple Canada trong nhà', price: 300000, tag: 'FIBA TRONG NHÀ 🌟', icon: '🪵', desc: 'Sàn gỗ chuẩn giải VBA, điều hòa làm mát, bảng rổ kính lực và đồng hồ 24s', image: '/images/courts/basketball/basketball_5x5_cs1.jpg', formats: ['5v5 Toàn sân'] },
+      { id: 602, code: 'BASKETBALL_3X3', name: 'Sân Bóng Rổ (Nửa Sân 3x3 Streetball)', surface: 'Mặt sơn Silicon PU ngoài trời', price: 150000, tag: 'STREETBALL', icon: '🏀', desc: 'Nửa sân tiêu chuẩn 3x3, bảng kính cường lực đàn hồi, tự do ném rổ', image: '/images/courts/basketball/basketball_3x3_cs1.jpg', formats: ['3x3 Đối kháng'] }
+    ]
+  },
+  TENNIS: {
+    default: [
+      { id: 501, code: 'TENNIS_HARD_COURT', name: 'Sân Tennis Mặt Sân Cứng (Decoturf US Open)', surface: 'Sơn Acrylic Decoturf 8 lớp', price: 200000, tag: 'SÂN CỨNG US OPEN', icon: '🎾', desc: 'Độ nảy bóng cực chuẩn, đèn LED 800 Lux đêm, hỗ trợ Đơn 1v1 & Đôi 2v2', image: '/images/courts/tennis/tennis_hard_cs1.jpg', formats: ['Đơn (1v1)', 'Đôi (2v2)'] },
+      { id: 502, code: 'TENNIS_CLAY', name: 'Sân Tennis Mặt Đất Nện (Roland Garros)', surface: 'Đất nện đỏ nhập khẩu', price: 220000, tag: 'ĐẤT NỆN ROLAND GARROS 🔥', icon: '🧱', desc: 'Mặt sân trượt êm chân, bóng nảy chậm bảo vệ khớp chân, hỗ trợ Đơn & Đôi', image: '/images/courts/tennis/tennis_clay_cs1.jpg', formats: ['Đơn (1v1)', 'Đôi (2v2)'] },
+      { id: 503, code: 'TENNIS_GRASS', name: 'Sân Tennis Mặt Sân Cỏ (Wimbledon)', surface: 'Cỏ tự nhiên chuyên dụng', price: 240000, tag: 'SÂN CỎ WIMBLEDON ⭐', icon: '🌱', desc: 'Đẳng cấp quý tộc, đường bóng trượt nhanh phản xạ sắc bén, hỗ trợ Đơn & Đôi', image: '/images/courts/tennis/tennis_grass_cs1.jpg', formats: ['Đơn (1v1)', 'Đôi (2v2)'] }
     ]
   }
 };

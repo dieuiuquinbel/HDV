@@ -1,12 +1,12 @@
 # Công việc còn lại và kế hoạch kiểm chứng
 
-Cập nhật: **13/11/2026**. Nghiệp vụ hiện tại nằm ở [Sport](Sport.md), kỹ thuật/API ở [thiết kế](docs/design-review-erd-api-contract.md). Kế hoạch theo giai đoạn và báo cáo lỗi cũ được giữ tại [lịch sử](docs/archive/lich-su-tai-lieu-truoc-2026-11-13.md).
+Cập nhật: **17/11/2026**. Nghiệp vụ hiện tại nằm ở [Sport](Sport.md), kỹ thuật/API ở [thiết kế](docs/design-review-erd-api-contract.md). Kế hoạch theo giai đoạn và báo cáo lỗi cũ được giữ tại [lịch sử](docs/archive/lich-su-tai-lieu-truoc-2026-11-13.md).
 
 ## 1. Phạm vi đã thống nhất
 
 - Giữ giao diện hiện tại; ưu tiên sửa logic, dữ liệu và độ ổn định của những luồng đã có.
-- Đợt cập nhật này chỉ sửa Markdown, chưa sửa Java/JS/CSS/SQL/YAML/script và chưa quyết định bỏ service hay màn hình.
-- Tách hai trạng thái: **đã có thay đổi trong mã** và **đã kiểm chứng hành vi**. Không đánh dấu hoàn tất chỉ vì compile/build thành công.
+- Kiến trúc 6 backend services độc lập (Gateway 8080, User 8081, Court 8082, Booking 8083, Payment 8084, Notification 8085); Review Service đã được loại bỏ hoàn toàn khỏi hệ thống.
+- Tách hai trạng thái: **đã có thay đổi trong mã** và **đã kiểm chứng hành vi**. Đã có bộ test tự động 9/9 PASS trên H2 in-memory DB.
 - Không lặp danh sách tính năng/API hoặc lịch sử sửa lỗi tại đây; bảng dưới là việc còn phải làm.
 
 ## 2. Ưu tiên sửa và điều kiện hoàn thành
