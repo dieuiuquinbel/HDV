@@ -41,8 +41,8 @@ if not defined MYSQL_CMD (
 
 echo [+] Su dung MySQL tai: "%MYSQL_CMD%"
 
-:: 2. Thuc thi SQL lam sach du lieu don hang, giao dich va thong bao
-set "SQL_CLEAN=SET FOREIGN_KEY_CHECKS = 0; TRUNCATE TABLE booking_db.booking_price_lines; TRUNCATE TABLE booking_db.booking_slots; TRUNCATE TABLE booking_db.active_slot_locks; TRUNCATE TABLE booking_db.booking_idempotency; TRUNCATE TABLE booking_db.bookings; ALTER TABLE booking_db.bookings AUTO_INCREMENT = 1; TRUNCATE TABLE payment_db.payment_attempts; TRUNCATE TABLE payment_db.payment_reconciliations; TRUNCATE TABLE payment_db.refunds; TRUNCATE TABLE payment_db.payment_transactions; ALTER TABLE payment_db.payment_transactions AUTO_INCREMENT = 1; TRUNCATE TABLE notification_db.notifications; ALTER TABLE notification_db.notifications AUTO_INCREMENT = 1; SET FOREIGN_KEY_CHECKS = 1;"
+:: 2. Thuc thi SQL lam sach du lieu don hang, giao dich, thong bao va loc ve dung 5 user chuan
+set "SQL_CLEAN=SET FOREIGN_KEY_CHECKS = 0; TRUNCATE TABLE booking_db.booking_price_lines; TRUNCATE TABLE booking_db.booking_slots; TRUNCATE TABLE booking_db.active_slot_locks; TRUNCATE TABLE booking_db.booking_idempotency; TRUNCATE TABLE booking_db.bookings; ALTER TABLE booking_db.bookings AUTO_INCREMENT = 1; TRUNCATE TABLE payment_db.payment_attempts; TRUNCATE TABLE payment_db.payment_reconciliations; TRUNCATE TABLE payment_db.refunds; TRUNCATE TABLE payment_db.payment_transactions; ALTER TABLE payment_db.payment_transactions AUTO_INCREMENT = 1; TRUNCATE TABLE notification_db.notifications; ALTER TABLE notification_db.notifications AUTO_INCREMENT = 1; DELETE FROM user_db.users WHERE email NOT IN ('admin@esportking.vn', 'staff_cs1@esportking.vn', 'staff_cs2@esportking.vn', 'staff_cs3@esportking.vn', 'customer@esportking.vn'); SET FOREIGN_KEY_CHECKS = 1;"
 
 "%MYSQL_CMD%" -u root -p%DB_PASS% -e "%SQL_CLEAN%" 2>nul
 
@@ -52,7 +52,7 @@ echo [+] Dang kiem tra ket qua sau khi reset:
 
 echo.
 echo [OK] Auto Increment don hang da reset ve : #1
-echo [OK] Tai khoan nguoi dung (user_db)      : GIU NGUYEN 100%%
+echo [OK] Tai khoan nguoi dung (user_db)      : DUNG 5 TAI KHOAN CHUAN (1 Admin, 3 Staff, 1 Customer)
 echo [OK] 3 Co so ^& 30 san the thao (court_db): GIU NGUYEN 100%%
 echo.
 echo ==========================================================

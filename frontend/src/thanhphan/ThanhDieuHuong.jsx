@@ -201,17 +201,14 @@ export default function ThanhDieuHuong({ user, onDangXuat }) {
       { to: '/tim-san', label: 'Tìm sân (3 Cơ sở)', icon: Search }
     );
   } else if (user.role === 'STAFF') {
-    // 2. Nhân viên trực ban (Chỉ trạm trực ban tiếp đón khách)
+    // 2. Nhân viên trực quầy (Tập trung 100% vào nghiệp vụ đón khách & check-in ca chơi)
     navItems.push(
-      { to: '/', label: 'Trang chủ', icon: Trophy },
-      { to: '/checkin', label: 'Trạm Check-in QR', icon: QrCode }
+      { to: '/checkin', label: 'Trạm Check-In QR', icon: QrCode }
     );
   } else if (user.role === 'ADMIN') {
-    // 3. Quản trị viên Admin
+    // 3. Quản trị viên Admin (Đúng 2 tab: Trạm Check-In & Quản trị Admin)
     navItems.push(
-      { to: '/', label: 'Trang chủ', icon: Trophy },
-      { to: '/tim-san', label: 'Tìm sân', icon: Search },
-      { to: '/checkin', label: 'Trạm Check-in', icon: QrCode },
+      { to: '/checkin', label: 'Trạm Check-In', icon: QrCode },
       { to: '/admin', label: 'Quản trị Admin', icon: Shield }
     );
   } else if (user.role === 'OWNER') {
@@ -264,7 +261,7 @@ export default function ThanhDieuHuong({ user, onDangXuat }) {
         <div className="flex items-center justify-between h-20">
           
           {/* Logo Brand ESportKing */}
-          <Link to="/" className="flex items-center gap-3 group">
+          <Link to={user?.role === 'ADMIN' ? '/admin' : user?.role === 'STAFF' ? '/checkin' : '/'} className="flex items-center gap-3 group">
             <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-brand-700 via-brand-600 to-rose-500 flex items-center justify-center text-white shadow-md shadow-brand-500/25 group-hover:scale-105 transition-transform duration-300">
               <span className="font-black text-lg tracking-wider">EK</span>
             </div>
