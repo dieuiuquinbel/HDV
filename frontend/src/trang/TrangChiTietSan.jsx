@@ -1008,7 +1008,9 @@ export default function TrangChiTietSan({ user: propUser }) {
                       <span>Chọn giờ bắt đầu thuê:</span>
                     </label>
                     <div className="flex items-center gap-3 text-[10px] font-semibold">
-                      <span className="text-amber-600">🔥 17:00–21:00: Giờ vàng</span>
+                      <span className="text-amber-700 bg-amber-50 border border-amber-200/80 px-2 py-0.5 rounded-full">
+                        🔥 17:00–21:00: Giờ vàng (Cao điểm + Đèn LED ban đêm)
+                      </span>
                       <span className="text-slate-400">⬜ Mờ: Qua giờ / Kín lịch</span>
                     </div>
                   </div>
@@ -1447,20 +1449,48 @@ export default function TrangChiTietSan({ user: propUser }) {
 
               {/* Bảng kê tổng chi phí */}
               <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/60 space-y-2 text-xs">
-                <div className="flex justify-between items-center text-slate-600 gap-2">
-                  <span className="flex items-center gap-1.5 flex-wrap">
-                    <span>Tiền thuê sân ({thoiLuongHienThi}):</span>
-                    {tongTienSan > Math.round(donGiaSan * (durationMinutes / 60)) && (
-                      <span className="text-[10px] font-black text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded-md">
-                        🔥 Giờ vàng
+                {(() => {
+                  const giaCoBan = Math.round(donGiaSan * (durationMinutes / 60));
+                  const phuPhiGioVang = Math.max(0, tongTienSan - giaCoBan);
+                  const phanTramTang = giaCoBan > 0 ? Math.round((phuPhiGioVang / giaCoBan) * 100) : 0;
+
+                  if (phuPhiGioVang > 0) {
+                    return (
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between items-center text-slate-600 gap-2">
+                          <span className="flex items-center gap-1.5 flex-wrap">
+                            <span>Giá sân cơ bản ({thoiLuongHienThi}):</span>
+                            {previewLoading && (
+                              <span className="text-[10px] text-brand-600 animate-pulse">(đang tính...)</span>
+                            )}
+                          </span>
+                          <span className="font-bold text-slate-800 shrink-0">{giaCoBan.toLocaleString('vi-VN')} đ</span>
+                        </div>
+                        <div className="flex justify-between items-center text-amber-800 bg-amber-50/90 px-2 py-1.5 rounded-xl border border-amber-200/70 gap-2">
+                          <span className="text-[11px] font-semibold leading-tight">
+                            🔥 Phụ phí giờ vàng & đèn LED (+{phanTramTang}%):
+                          </span>
+                          <span className="font-black text-amber-700 shrink-0">+{phuPhiGioVang.toLocaleString('vi-VN')} đ</span>
+                        </div>
+                        <p className="text-[10px] text-slate-400 leading-snug">
+                          💡 Khung 17:00–21:00 đã bao gồm chi phí vận hành hệ thống đèn LED chiếu sáng & cao điểm buổi tối.
+                        </p>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="flex justify-between items-center text-slate-600 gap-2">
+                      <span className="flex items-center gap-1.5 flex-wrap">
+                        <span>Tiền thuê sân ({thoiLuongHienThi}):</span>
+                        {previewLoading && (
+                          <span className="text-[10px] text-brand-600 animate-pulse">(đang tính...)</span>
+                        )}
                       </span>
-                    )}
-                    {previewLoading && (
-                      <span className="text-[10px] text-brand-600 animate-pulse">(đang tính...)</span>
-                    )}
-                  </span>
-                  <span className="font-bold text-slate-800 shrink-0">{tongTienSan.toLocaleString('vi-VN')} đ</span>
-                </div>
+                      <span className="font-bold text-slate-800 shrink-0">{tongTienSan.toLocaleString('vi-VN')} đ</span>
+                    </div>
+                  );
+                })()}
 
                 {tongTienDichVu > 0 && (
                   <div className="flex justify-between text-amber-700 font-semibold bg-amber-50/80 p-2 rounded-xl border border-amber-200/60">
