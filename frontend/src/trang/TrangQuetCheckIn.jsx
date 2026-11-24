@@ -35,7 +35,7 @@ import { apiDichVu } from '../dichvu/api';
 const DANH_SACH_CO_SO = [
   { id: 1, name: 'Cơ Sở 1 (Cầu Giấy)', address: 'Số 18 Duy Tân, Dịch Vọng Hậu, Cầu Giấy', mapUrl: 'https://maps.google.com/?q=21.031300,105.783500' },
   { id: 2, name: 'Cơ Sở 2 (Đống Đa)', address: 'Số 102 Trường Chinh, Phương Mai, Đống Đa', mapUrl: 'https://maps.google.com/?q=21.002800,105.839200' },
-  { id: 3, name: 'Cơ Sở 3 (Long Biên)', address: 'Số 27 Đường Cổ Linh, Long Biên', mapUrl: 'https://maps.google.com/?q=21.034500,105.892300' },
+  { id: 3, name: 'Cơ Sở 3 (Hà Đông)', address: 'Số 27 Đường Quang Trung, Hà Đông', mapUrl: 'https://maps.google.com/?q=20.972100,105.774500' },
 ];
 
 // Phat am thanh chuong quet check-in / co don tiep te moi
@@ -91,81 +91,64 @@ export default function TrangQuetCheckIn({ user }) {
   const [timKiemDon, setTimKiemDon] = useState('');
   const [dangTaiDon, setDangTaiDon] = useState(false);
   const [traSanMsg, setTraSanMsg] = useState('');
+  const [tabTram, setTabTram] = useState('CHECKIN'); // 'CHECKIN' | 'YEU_CAU'
+  const [boLocNgay, setBoLocNgay] = useState('UPCOMING'); // 'UPCOMING' | 'TODAY' | 'TOMORROW'
 
   const videoRef = useRef(null);
   const fileInputRef = useRef(null);
   const streamRef = useRef(null);
+  const prevPendingCountRef = useRef(0);
 
-  // Danh sach yeu cau dich vu tai san cua co so dang truc
-  const [danhSachDichVu, setDanhSachDichVu] = useState(() => {
-    try {
-      const saved = localStorage.getItem('esportking_service_requests');
-      if (saved) return JSON.parse(saved);
-    } catch {}
-    return [];
-  });
+  // Danh sach yeu cau dich vu tai san lay truc tiep tu Backend API (dong bo da trinh duyet)
+  const [danhSachDichVu, setDanhSachDichVu] = useState([]);
 
   useEffect(() => {
     localStorage.setItem('esportking_active_station', stationVenueId.toString());
   }, [stationVenueId]);
 
-  useEffect(() => {
-    localStorage.setItem('esportking_service_requests', JSON.stringify(danhSachDichVu));
-    window.dispatchEvent(new Event('cap_nhat_dich_vu'));
-  }, [danhSachDichVu]);
-
-  // Lang nghe yeu cau dich vu moi tu khach hang gui toi va dinh ky dong bo 5s
-  useEffect(() => {
-    let prevCount = danhSachDichVu.length;
-
-    const dongBoYeuCau = () => {
-      try {
-        const saved = localStorage.getItem('esportking_service_requests');
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed)) {
-            if (parsed.length > prevCount) {
-              phatChuongBaoQuay();
-            }
-            prevCount = parsed.length;
-            setDanhSachDichVu(parsed);
-          }
+  const taiYeuCauDichVu = async () => {
+    try {
+      const res = await apiDichVu.layDanhSachYeuCauDichVu({ venueId: stationVenueId });
+      if (Array.isArray(res?.data)) {
+        const pendingCount = res.data.filter(r => r.status === 'PENDING').length;
+        if (pendingCount > prevPendingCountRef.current) {
+          phatChuongBaoQuay();
         }
-      } catch {}
-    };
-
-    window.addEventListener('cap_nhat_dich_vu', dongBoYeuCau);
-    window.addEventListener('storage', dongBoYeuCau);
-
-    const polling = setInterval(dongBoYeuCau, 4000);
-
-    return () => {
-      window.removeEventListener('cap_nhat_dich_vu', dongBoYeuCau);
-      window.removeEventListener('storage', dongBoYeuCau);
-      clearInterval(polling);
-    };
-  }, []);
+        prevPendingCountRef.current = pendingCount;
+        setDanhSachDichVu(res.data);
+      }
+    } catch (e) {
+      console.warn('Khong the tai yeu cau dich vu:', e);
+    }
+  };
 
   const coSoHienTai = DANH_SACH_CO_SO.find(c => c.id === stationVenueId) || DANH_SACH_CO_SO[0];
 
-  // Tai danh sach don dat tai tram hom nay
-  const taiDanhSachDonHomNay = async () => {
-    setDangTaiDon(true);
+  // Tai danh sach don dat tai tram (ho tro Sap toi / Hom nay / Ngay mai)
+  const taiDanhSachDonHomNay = async (ngam = false) => {
+    if (!ngam) setDangTaiDon(true);
     try {
-      const res = await apiDichVu.layDanhSachDonTheoTram({ venueId: stationVenueId });
+      const res = await apiDichVu.layDanhSachDonTheoTram({ venueId: stationVenueId, range: boLocNgay });
       if (res?.data && Array.isArray(res.data)) {
         setDanhSachDonHomNay(res.data);
       }
     } catch (e) {
       console.warn('Khong the lay danh sach don theo tram:', e);
     } finally {
-      setDangTaiDon(false);
+      if (!ngam) setDangTaiDon(false);
     }
   };
 
+  // Dong bo tu dong ca Lich Dat San & Yeu Cau Phuc Vu moi 5 giay
   useEffect(() => {
-    taiDanhSachDonHomNay();
-  }, [stationVenueId]);
+    taiDanhSachDonHomNay(false);
+    taiYeuCauDichVu();
+    const polling = setInterval(() => {
+      taiDanhSachDonHomNay(true);
+      taiYeuCauDichVu();
+    }, 5000);
+    return () => clearInterval(polling);
+  }, [stationVenueId, boLocNgay]);
 
   // Xu ly tai anh QR tu file (Upload hoac Keo tha)
   const xuLyTaiAnhQR = (file) => {
@@ -320,28 +303,29 @@ export default function TrangQuetCheckIn({ user }) {
     }
   };
 
-  // Nhan vien tiep nhan yeu cau dich vu
-  const tiepNhanDichVu = (reqId) => {
-    setDanhSachDichVu(prev => prev.map(item => {
-      if (item.id === reqId) {
-        return { ...item, status: 'IN_PROGRESS' };
-      }
-      return item;
-    }));
+  // Nhan vien tiep nhan yeu cau dich vu (goi Backend API)
+  const tiepNhanDichVu = async (reqId) => {
+    try {
+      await apiDichVu.capNhatTrangThaiYeuCauDichVu(reqId, 'PREPARING');
+      taiYeuCauDichVu();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Không thể cập nhật trạng thái yêu cầu.');
+    }
   };
 
-  // Nhan vien hoan tat giao do tai san
-  const hoanTatDichVu = (reqId) => {
-    setDanhSachDichVu(prev => prev.map(item => {
-      if (item.id === reqId) {
-        return { ...item, status: 'COMPLETED' };
-      }
-      return item;
-    }));
+  // Nhan vien hoan tat giao do tai san (goi Backend API)
+  const hoanTatDichVu = async (reqId) => {
+    try {
+      await apiDichVu.capNhatTrangThaiYeuCauDichVu(reqId, 'DELIVERED');
+      taiYeuCauDichVu();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Không thể cập nhật trạng thái hoàn tất.');
+    }
   };
 
   // Loc cac yeu cau dich vu thuoc co so dang truc
-  const yeuCauThuocCoSo = danhSachDichVu.filter(d => d.venueId === stationVenueId);
+  const yeuCauThuocCoSo = danhSachDichVu;
+  const soYeuCauDangCho = yeuCauThuocCoSo.filter(d => d.status === 'PENDING' || d.status === 'PREPARING').length;
 
   return (
     <div className="min-h-screen bg-[#fbf7f5] py-8 px-4 sm:px-6 lg:px-8">
@@ -385,6 +369,57 @@ export default function TrangQuetCheckIn({ user }) {
           </div>
         </div>
 
+        {/* THANH CHUYEN 2 TAB CHINH CUA NHAN VIEN: TAB 1 (CHECK-IN & LICH SAN) | TAB 2 (YEU CAU PHUC VU) */}
+        <div className="grid grid-cols-2 gap-3 bg-white p-2 rounded-2xl border border-slate-200/80 shadow-xs">
+          <button
+            type="button"
+            onClick={() => setTabTram('CHECKIN')}
+            className={`py-3 px-4 rounded-xl text-xs sm:text-sm font-black transition flex items-center justify-center gap-2 cursor-pointer ${
+              tabTram === 'CHECKIN'
+                ? 'bg-brand-600 text-white shadow-md shadow-brand-500/25'
+                : 'text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            <QrCode className="w-4 h-4" />
+            <span>Check-in & Lịch Sân</span>
+            <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+              tabTram === 'CHECKIN' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'
+            }`}>
+              {danhSachDonHomNay.length}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setTabTram('YEU_CAU');
+              taiYeuCauDichVu();
+            }}
+            className={`py-3 px-4 rounded-xl text-xs sm:text-sm font-black transition flex items-center justify-center gap-2 cursor-pointer ${
+              tabTram === 'YEU_CAU'
+                ? 'bg-amber-500 text-white shadow-md shadow-amber-500/25'
+                : 'text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            <BellRing className="w-4 h-4" />
+            <span>Yêu Cầu Phục Vụ Tại Sân</span>
+            {soYeuCauDangCho > 0 ? (
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-600 text-white animate-pulse">
+                {soYeuCauDangCho} mới
+              </span>
+            ) : (
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                tabTram === 'YEU_CAU' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
+              }`}>
+                0
+              </span>
+            )}
+          </button>
+        </div>
+
+        {/* ================= TAB 1: CHECK-IN QR & LỊCH ĐẶT SÂN ================= */}
+        {tabTram === 'CHECKIN' && (
+          <div className="space-y-6">
         {/* 2. KHU VUC QUET MA QR CHECK-IN THONG MINH */}
         <div className="bg-white rounded-[28px] p-6 sm:p-8 shadow-xl border border-slate-100 text-center">
           
@@ -643,14 +678,31 @@ export default function TrangQuetCheckIn({ user }) {
               </div>
               <div className="text-left">
                 <h3 className="font-black text-slate-900 text-base flex items-center gap-2">
-                  Quản Lý Nhận & Trả Sân Hôm Nay
+                  Quản Lý Nhận & Trả Sân
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-blue-100 text-blue-800">
                     {danhSachDonHomNay.length} LƯỢT ĐẶT
                   </span>
                 </h3>
-                <p className="text-xs text-slate-500">
-                  Lễ tân có thể xác nhận check-in 1 chạm hoặc bấm hoàn tất trả sân khi hết trận đấu
-                </p>
+                <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                  {[
+                    { code: 'UPCOMING', label: 'Sắp tới (Hôm nay & tới)' },
+                    { code: 'TODAY', label: 'Chỉ hôm nay' },
+                    { code: 'TOMORROW', label: 'Ngày mai' }
+                  ].map(f => (
+                    <button
+                      key={f.code}
+                      type="button"
+                      onClick={() => setBoLocNgay(f.code)}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer ${
+                        boLocNgay === f.code
+                          ? 'bg-slate-900 text-white'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      {f.label}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
 
@@ -723,7 +775,8 @@ export default function TrangQuetCheckIn({ user }) {
                           <span className="font-bold text-slate-800">{don.courtName || `Sân #${don.courtId}`}</span>
                         </td>
                         <td className="py-3 px-3 text-slate-600 font-medium whitespace-nowrap">
-                          {don.startSlot?.substring(0, 5)} - {don.endSlot?.substring(0, 5)}
+                          <span className="block font-bold text-slate-800">{don.bookingDate}</span>
+                          <span>{don.startSlot?.substring(0, 5)} - {don.endSlot?.substring(0, 5)}</span>
                         </td>
                         <td className="py-3 px-3 font-bold text-slate-800 whitespace-nowrap">
                           {Number(don.totalAmount).toLocaleString('vi-VN')} đ
@@ -800,8 +853,11 @@ export default function TrangQuetCheckIn({ user }) {
             </table>
           </div>
         </div>
+          </div>
+        )}
 
-        {/* 4. BANG DIEU PHOI DICH VU TAI SAN (IN-COURT SERVICE DISPATCHER) */}
+        {/* ================= TAB 2: YÊU CẦU PHỤC VỤ TẠI SÂN (LIVE DISPATCHER) ================= */}
+        {tabTram === 'YEU_CAU' && (
         <div className="bg-white rounded-[28px] p-6 sm:p-8 shadow-sm border border-slate-200/80">
           
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 pb-4 border-b border-slate-100">
@@ -811,18 +867,28 @@ export default function TrangQuetCheckIn({ user }) {
               </div>
               <div className="text-left">
                 <h3 className="font-black text-slate-900 text-base flex items-center gap-2">
-                  Điều Phối Dịch Vụ Tiếp Tế Tận Sân
+                  Yêu Cầu Phục Vụ Tại Sân (Đồng bộ thời gian thực)
                   <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping"></span>
                 </h3>
                 <p className="text-xs text-slate-500">
-                  Tiếp nhận các yêu cầu tức thời từ vận động viên đang chơi tại <strong className="text-slate-800">{coSoHienTai.name}</strong>
+                  Tiếp nhận các yêu cầu gọi nước / dụng cụ từ khách đã Check-in tại <strong className="text-slate-800">{coSoHienTai.name}</strong>
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-2 text-xs font-bold text-slate-500">
-              <Timer className="w-4 h-4 text-brand-600" />
-              <span>Cam kết SLA: &lt; 5 phút</span>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-slate-500">
+                <Timer className="w-4 h-4 text-brand-600" />
+                <span>Cam kết SLA: &lt; 5 phút</span>
+              </div>
+              <button
+                type="button"
+                onClick={taiYeuCauDichVu}
+                className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl transition cursor-pointer"
+                title="Làm mới yêu cầu"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+              </button>
             </div>
           </div>
 
@@ -839,67 +905,76 @@ export default function TrangQuetCheckIn({ user }) {
                   key={item.id}
                   className={`p-4 rounded-2xl border transition flex flex-col md:flex-row md:items-center justify-between gap-4 text-left ${
                     item.status === 'PENDING'
-                      ? 'bg-rose-50/30 border-rose-200 shadow-sm'
-                      : item.status === 'IN_PROGRESS'
-                      ? 'bg-amber-50/40 border-amber-200'
+                      ? 'bg-rose-50/40 border-rose-200 shadow-sm'
+                      : item.status === 'PREPARING'
+                      ? 'bg-amber-50/50 border-amber-200'
                       : 'bg-slate-50 border-slate-200 opacity-80'
                   }`}
                 >
                   <div className="space-y-1">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="px-2 py-0.5 rounded-lg text-xs font-black bg-slate-900 text-white">
                         {item.courtName}
                       </span>
                       <span className="text-xs font-bold text-slate-800">
-                        {item.customerName}
+                        {item.customerName} (Vé #{item.bookingId})
                       </span>
-                      <span className="text-[11px] text-slate-400">• {item.requestTime}</span>
+                      <span className="text-[11px] text-slate-400">
+                        • {item.createdAt ? new Date(item.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : 'Vừa xong'}
+                      </span>
                       
                       {item.status === 'PENDING' && (
                         <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-500 text-white animate-pulse">
                           Chờ tiếp nhận
                         </span>
                       )}
-                      {item.status === 'IN_PROGRESS' && (
+                      {item.status === 'PREPARING' && (
                         <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500 text-white">
                           Đang mang ra sân
                         </span>
                       )}
-                      {item.status === 'COMPLETED' && (
+                      {item.status === 'DELIVERED' && (
                         <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-500 text-white">
-                          Đã hoàn tất
+                          Đã giao tận sân
                         </span>
                       )}
                     </div>
 
                     <p className="text-sm font-bold text-slate-900 flex items-center gap-1.5 pt-0.5">
-                      <Coffee className="w-4 h-4 text-brand-600" />
+                      <Coffee className="w-4 h-4 text-brand-600 shrink-0" />
                       <span>{item.items}</span>
                     </p>
+                    {Number(item.totalAmount || 0) > 0 && (
+                      <p className="text-xs font-black text-amber-700">
+                        Thu tại sân: {Number(item.totalAmount).toLocaleString('vi-VN')} đ
+                      </p>
+                    )}
                   </div>
 
                   {/* Nut thao tac cua nhan vien truc */}
                   <div className="flex items-center gap-2 shrink-0">
                     {item.status === 'PENDING' && (
                       <button
+                        type="button"
                         onClick={() => tiepNhanDichVu(item.id)}
-                        className="px-4 py-2 bg-amber-500 hover:bg-amber-600 active:scale-98 text-white rounded-xl text-xs font-bold transition shadow-sm cursor-pointer"
+                        className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition shadow-sm cursor-pointer"
                       >
                         Tiếp Nhận Yêu Cầu
                       </button>
                     )}
-                    {item.status === 'IN_PROGRESS' && (
+                    {item.status === 'PREPARING' && (
                       <button
+                        type="button"
                         onClick={() => hoanTatDichVu(item.id)}
-                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white rounded-xl text-xs font-bold transition shadow-sm cursor-pointer flex items-center gap-1"
+                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition shadow-sm cursor-pointer flex items-center gap-1"
                       >
                         <Check className="w-3.5 h-3.5" />
                         <span>Đã Bàn Giao Tận Sân</span>
                       </button>
                     )}
-                    {item.status === 'COMPLETED' && (
+                    {item.status === 'DELIVERED' && (
                       <span className="text-xs text-emerald-700 font-bold flex items-center gap-1">
-                        <CheckCircle2 className="w-4 h-4" /> Xong trong 3 phút
+                        <CheckCircle2 className="w-4 h-4" /> Đã hoàn tất
                       </span>
                     )}
                   </div>
@@ -910,6 +985,7 @@ export default function TrangQuetCheckIn({ user }) {
           )}
 
         </div>
+        )}
 
       </div>
     </div>

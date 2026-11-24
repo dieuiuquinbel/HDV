@@ -25,6 +25,7 @@ public interface KhoDonDatSan extends JpaRepository<DonDatSan, Long> {
     Page<DonDatSan> findByCourtIdIn(List<Long> courtIds, Pageable pageable);
     Page<DonDatSan> findByStatus(TrangThaiDonDat status, Pageable pageable);
     List<DonDatSan> findByBookingDate(LocalDate bookingDate);
+    List<DonDatSan> findByBookingDateGreaterThanEqualOrderByBookingDateAscStartSlotAsc(LocalDate bookingDate);
     Page<DonDatSan> findByBookingDateBetween(LocalDate from, LocalDate to, Pageable pageable);
     List<DonDatSan> findByStatusAndExpiredAtLessThan(TrangThaiDonDat status, Instant now);
     List<DonDatSan> findByStatusAndBookingDateLessThanEqual(TrangThaiDonDat status, LocalDate date);

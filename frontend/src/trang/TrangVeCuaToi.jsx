@@ -47,33 +47,28 @@ export default function TrangVeCuaToi({ user }) {
   const [vePhongTo, setVePhongTo] = useState(null);
   const [daCopyToken, setDaCopyToken] = useState(false);
 
-  // Modal Order Dich Vu tai san
+  // Modal Order Dich Vu tai san (dong bo qua Backend API da trinh duyet)
   const [modalOrderDon, setModalOrderDon] = useState(null);
   const [soLuongChon, setSoLuongChon] = useState({});
   const [thongBaoOrder, setThongBaoOrder] = useState('');
-  const [danhSachYeuCauDichVu, setDanhSachYeuCauDichVu] = useState(() => {
-    try {
-      const saved = localStorage.getItem('esportking_service_requests');
-      if (saved) return JSON.parse(saved);
-    } catch {}
-    return [];
-  });
+  const [danhSachYeuCauDichVu, setDanhSachYeuCauDichVu] = useState([]);
 
-  // Dong bo danh sach yeu cau dich vu voi cac tab / nhan vien truc ban
+  const taiYeuCauDichVuCuaToi = async () => {
+    if (!user) return;
+    try {
+      const res = await apiDichVu.layYeuCauDichVuCuaToi();
+      if (Array.isArray(res.data)) {
+        setDanhSachYeuCauDichVu(res.data);
+      }
+    } catch {}
+  };
+
+  // Dong bo danh sach yeu cau dich vu tu Backend moi 6 giay
   useEffect(() => {
-    const dongBo = () => {
-      try {
-        const saved = localStorage.getItem('esportking_service_requests');
-        if (saved) setDanhSachYeuCauDichVu(JSON.parse(saved));
-      } catch {}
-    };
-    window.addEventListener('cap_nhat_dich_vu', dongBo);
-    window.addEventListener('storage', dongBo);
-    return () => {
-      window.removeEventListener('cap_nhat_dich_vu', dongBo);
-      window.removeEventListener('storage', dongBo);
-    };
-  }, []);
+    taiYeuCauDichVuCuaToi();
+    const timer = setInterval(taiYeuCauDichVuCuaToi, 6000);
+    return () => clearInterval(timer);
+  }, [user]);
 
   const moModalOrder = (don) => {
     setModalOrderDon(don);
@@ -94,7 +89,7 @@ export default function TrangVeCuaToi({ user }) {
     });
   };
 
-  const guiYeuCauDichVu = () => {
+  const guiYeuCauDichVu = async () => {
     if (!modalOrderDon) return;
     const danhSachMon = Object.entries(soLuongChon)
       .map(([id, sl]) => {
@@ -111,33 +106,23 @@ export default function TrangVeCuaToi({ user }) {
     const itemsStr = danhSachMon.map(m => `${m.soLuong} ${m.ten}`).join(' + ');
     const tongTien = danhSachMon.reduce((sum, m) => sum + (m.gia * m.soLuong), 0);
 
-    const newReq = {
-      id: `REQ-${Math.floor(100 + Math.random() * 900)}`,
-      venueId: modalOrderDon.venueId || 1,
-      courtName: `Sân Con #${modalOrderDon.courtId}`,
-      customerName: user?.fullName || 'Khách Hàng',
-      items: itemsStr,
-      totalAmount: tongTien,
-      requestTime: 'Vừa xong',
-      status: 'PENDING',
-      secondsElapsed: 0,
-      bookingId: modalOrderDon.id
-    };
-
     try {
-      const raw = localStorage.getItem('esportking_service_requests');
-      const cur = raw ? JSON.parse(raw) : [];
-      const updated = [newReq, ...cur];
-      localStorage.setItem('esportking_service_requests', JSON.stringify(updated));
-      setDanhSachYeuCauDichVu(updated);
-      window.dispatchEvent(new Event('cap_nhat_dich_vu'));
-      setThongBaoOrder('Yêu cầu đã gửi thành công! Bàn trực ban đang chuẩn bị mang ra sân cho bạn (Cam kết < 5 phút).');
+      const res = await apiDichVu.taoYeuCauDichVuTaiSan(modalOrderDon.id, {
+        items: itemsStr,
+        totalAmount: tongTien,
+        customerName: user?.fullName || 'Khách Hàng',
+        venueId: modalOrderDon.venueId || 1
+      });
+      if (res.data) {
+        setDanhSachYeuCauDichVu(prev => [res.data, ...prev]);
+      }
+      setThongBaoOrder('Yêu cầu đã gửi thành công tới quầy trực ban! Nhân viên đang chuẩn bị mang ra sân cho bạn (Cam kết < 5 phút).');
       setTimeout(() => {
         setModalOrderDon(null);
         setThongBaoOrder('');
-      }, 2500);
+      }, 2200);
     } catch (e) {
-      console.error('Lỗi gửi dịch vụ:', e);
+      alert(e.response?.data?.message || 'Không thể gửi yêu cầu dịch vụ. Vui lòng đảm bảo bạn đã Check-in vào sân.');
     }
   };
 
@@ -714,8 +699,8 @@ export default function TrangVeCuaToi({ user }) {
 
                         {/* Nut Hanh Dong */}
                         <div className="flex items-center gap-2 mt-2 sm:mt-0">
-                          {/* Nút Gọi Dịch Vụ Tại Sân cho vé sẵn sàng hoặc đã nhận sân */}
-                          {(laChuaQuet || laDaNhanSan) && (
+                          {/* Chỉ hiện nút Gọi Dịch Vụ Tại Sân khi khách ĐÃ CHECK-IN và đang sử dụng sân */}
+                          {laDangSuDung && (
                             <button
                               type="button"
                               onClick={() => moModalOrder(don)}

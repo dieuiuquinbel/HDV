@@ -88,6 +88,10 @@ export const apiDichVu = {
   },
   traSanDonDat: (id) => api.post(`/bookings/${id}/complete`),
   layDanhSachDonTheoTram: (params) => api.get('/bookings/station', { params }),
+  taoYeuCauDichVuTaiSan: (bookingId, data) => api.post(`/bookings/${bookingId}/service-requests`, data),
+  layDanhSachYeuCauDichVu: (params) => api.get('/bookings/service-requests', { params }),
+  layYeuCauDichVuCuaToi: () => api.get('/bookings/service-requests/me'),
+  capNhatTrangThaiYeuCauDichVu: (id, status) => api.patch(`/bookings/service-requests/${id}/status`, { status }),
   layDonDatAdmin: (params) => api.get('/admin/bookings', { params }),
   layThongKeDonDat: (params) => api.get('/admin/statistics/bookings', { params }),
 

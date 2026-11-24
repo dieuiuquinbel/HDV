@@ -479,12 +479,25 @@ public class DichVuDatSan {
 
         if (Boolean.TRUE.equals(capNhatOk)) {
             log.info("Xac nhan thanh toan thanh cong cho don dat {} voi paymentId {}", bookingId, yeuCau.getPaymentId());
-            // Gui thong bao da xac nhan thanh toan sau khi da commit thanh cong vao DB
+            // Gui thong bao da xac nhan thanh toan cho khach hang
             dichVuGoiThongBaoNoiBo.guiThongBao(booking.getCustomerId(),
                     "Thanh toán thành công đơn đặt #" + bookingId,
                     "Đơn đặt sân ngày " + booking.getBookingDate() + " từ " + booking.getStartSlot() + " đến " + booking.getEndSlot() + " đã được xác nhận thanh toán thành công.",
                     "PAYMENT_SUCCESS",
                     bookingId);
+
+            // Gui thong bao cho Admin & Nhan vien truc quay co so tuong ung
+            try {
+                var config = dichVuGoiSanNoiBo.layCauHinhSan(booking.getCourtId(), booking.getBookingDate());
+                Long venueId = (config != null && config.getVenueId() != null) ? config.getVenueId() : 1L;
+                String tenSan = (config != null && config.getCourtName() != null) ? config.getCourtName() : ("Sân #" + booking.getCourtId());
+                Long staffUserId = (venueId >= 1 && venueId <= 3) ? (venueId + 1) : 2L;
+                String staffMsg = "Đơn #" + bookingId + " tại " + tenSan + " (" + booking.getBookingDate() + " • " + booking.getStartSlot() + "-" + booking.getEndSlot() + ") đã thanh toán, sẵn sàng Check-in.";
+                dichVuGoiThongBaoNoiBo.guiThongBao(staffUserId, "Có đơn đặt sân mới #" + bookingId, staffMsg, "BOOKING_NEW", bookingId);
+                dichVuGoiThongBaoNoiBo.guiThongBao(1L, "Có đơn đặt sân mới #" + bookingId, staffMsg, "BOOKING_NEW", bookingId);
+            } catch (Exception ex) {
+                log.warn("Khong the gui thong bao don moi cho nhan vien/admin: {}", ex.getMessage());
+            }
         } else {
             log.warn("Don dat {} khong con o trang thai PENDING_PAYMENT, bo qua xac nhan", bookingId);
             throw new LoiNghiepVu(HttpStatus.CONFLICT, "BOOKING_NOT_PAYABLE", "Đơn đặt sân không còn ở trạng thái chờ thanh toán.");

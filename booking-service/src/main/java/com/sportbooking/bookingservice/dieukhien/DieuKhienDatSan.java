@@ -271,6 +271,7 @@ public class DieuKhienDatSan {
     public ResponseEntity<List<Map<String, Object>>> layDanhSachDonTheoTram(
             @RequestParam(required = false) Long venueId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam(required = false, defaultValue = "UPCOMING") String range,
             @RequestHeader(value = "X-User-Id", required = false) Long userId,
             @RequestHeader(value = "X-User-Role", required = false) String userRole) {
 
@@ -278,8 +279,17 @@ public class DieuKhienDatSan {
             throw new LoiNghiepVu(HttpStatus.FORBIDDEN, "FORBIDDEN", "Chỉ nhân viên trực ban hoặc quản trị viên mới có quyền xem danh sách đơn theo trạm.");
         }
 
-        LocalDate targetDate = date != null ? date : LocalDate.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh"));
-        List<com.sportbooking.bookingservice.thucthe.DonDatSan> list = khoDonDatSan.findByBookingDate(targetDate);
+        LocalDate today = LocalDate.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh"));
+        List<com.sportbooking.bookingservice.thucthe.DonDatSan> list;
+        if (date != null) {
+            list = khoDonDatSan.findByBookingDate(date);
+        } else if ("TODAY".equalsIgnoreCase(range)) {
+            list = khoDonDatSan.findByBookingDate(today);
+        } else if ("TOMORROW".equalsIgnoreCase(range)) {
+            list = khoDonDatSan.findByBookingDate(today.plusDays(1));
+        } else {
+            list = khoDonDatSan.findByBookingDateGreaterThanEqualOrderByBookingDateAscStartSlotAsc(today);
+        }
         if (list == null) {
             list = Collections.emptyList();
         }
