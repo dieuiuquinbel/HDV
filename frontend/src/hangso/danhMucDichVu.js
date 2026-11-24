@@ -54,6 +54,22 @@ export const DICH_VU_THEO_MON = {
       allowQuantity: false,
       desc: 'Ghi hình & tự động cắt video clip bàn thắng toàn bộ ca đấu'
     },
+    {
+      id: 'fb_shoes',
+      name: 'Thuê Giày Đá Bóng Đinh TF Sân Cỏ',
+      price: 40000,
+      unit: 'đôi / trọn ca',
+      icon: '👟',
+      allowQuantity: true,
+      maxQty: 5,
+      desc: 'Giày đinh TF bám cỏ nhân tạo, đã khử khuẩn sạch thơm dùng suốt ca',
+      variants: [
+        { id: 'size_39', name: 'Size 39', tag: 'Form ôm chân', price: 40000 },
+        { id: 'size_40', name: 'Size 40', tag: 'Phổ thông', price: 40000 },
+        { id: 'size_41', name: 'Size 41', tag: 'Phổ thông', price: 40000 },
+        { id: 'size_42', name: 'Size 42', tag: 'Chân rộng thoải mái', price: 40000 },
+      ]
+    },
   ],
   BADMINTON: [
     {

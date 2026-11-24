@@ -732,39 +732,63 @@ export default function TrangChiTietSan({ user: propUser }) {
             <span className="text-slate-900 font-bold">{coSoHienTai.ten}</span>
           </nav>
 
-          {/* Tiêu đề & Thông tin cơ sở */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-2 flex-wrap mb-1.5">
-                <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-black shadow-sm flex items-center gap-1 ${coSoHienTai.badgeClass}`}>
-                  {coSoHienTai.icon} {coSoHienTai.ten}
-                </span>
+          {/* Hero Banner Ảnh Sân Thực Tế + Thông tin cơ sở */}
+          <div className="relative rounded-3xl overflow-hidden shadow-lg border border-slate-200/80 min-h-[195px] sm:min-h-[215px] flex items-end">
+            <img
+              src={selectedCourt?.image || '/images/courts/football/football_5_cs1.jpg'}
+              alt={selectedCourt?.name || coSoHienTai.tenDayDu}
+              className="absolute inset-0 w-full h-full object-cover object-center transition-all duration-500"
+            />
+            <div className="absolute inset-0 bg-gradient-to-r from-slate-950/90 via-slate-900/70 to-slate-900/25" />
 
-                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-brand-50 text-brand-700 border border-brand-200">
-                  {iconMon} BỘ MÔN: {tenMonTiengViet.toUpperCase()}
-                </span>
-
-                {maMon === 'FOOTBALL' && (
-                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-slate-900 text-white">
-                    QUY MÔ: SÂN {sizeParam} NGƯỜI
+            <div className="relative z-10 w-full p-5 sm:p-6 flex flex-col md:flex-row md:items-end justify-between gap-4 text-white">
+              <div className="max-w-2xl">
+                <div className="flex items-center gap-2 flex-wrap mb-2">
+                  <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-black shadow-sm flex items-center gap-1 ${coSoHienTai.badgeClass}`}>
+                    {coSoHienTai.icon} {coSoHienTai.ten}
                   </span>
-                )}
+
+                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-white/15 backdrop-blur-md text-white border border-white/20">
+                    {iconMon} BỘ MÔN: {tenMonTiengViet.toUpperCase()}
+                  </span>
+
+                  {maMon === 'FOOTBALL' && (
+                    <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-amber-400 text-slate-950">
+                      SÂN {sizeParam} NGƯỜI
+                    </span>
+                  )}
+
+                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-emerald-500/25 text-emerald-200 border border-emerald-400/30 flex items-center gap-1">
+                    <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                    4.9 • Chuẩn thi đấu
+                  </span>
+                </div>
+
+                <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight drop-shadow-xs">
+                  {coSoHienTai.tenDayDu}
+                </h1>
+
+                <div className="flex items-center gap-4 text-xs text-slate-200 mt-1.5 flex-wrap">
+                  <span className="flex items-center gap-1">
+                    <MapPin className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                    {coSoHienTai.diaChi}
+                  </span>
+                  <span className="flex items-center gap-1 font-bold text-white">
+                    <Phone className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                    Hotline: {coSoHienTai.hotline}
+                  </span>
+                </div>
               </div>
 
-              <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-                {coSoHienTai.tenDayDu}
-              </h1>
-
-              <div className="flex items-center gap-4 text-xs text-slate-500 mt-1 flex-wrap">
-                <span className="flex items-center gap-1">
-                  <MapPin className="w-3.5 h-3.5 text-rose-500" />
-                  {coSoHienTai.diaChi}
-                </span>
-                <span className="flex items-center gap-1 font-bold text-slate-700">
-                  <Phone className="w-3.5 h-3.5 text-brand-600" />
-                  Hotline đặt sân: {coSoHienTai.hotline}
-                </span>
-              </div>
+              {selectedCourt && (
+                <div className="px-4 py-2.5 rounded-2xl bg-white/12 backdrop-blur-md border border-white/20 text-right self-start md:self-end shrink-0">
+                  <span className="block text-[10px] text-slate-300 font-semibold">Đang xem loại sân</span>
+                  <span className="block text-xs font-black text-white max-w-[200px] truncate">{selectedCourt.name}</span>
+                  <span className="block text-sm font-black text-amber-300 mt-0.5">
+                    {Number(selectedCourt.price || 0).toLocaleString('vi-VN')} đ<span className="text-[10px] font-normal text-slate-300">/giờ cơ bản</span>
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -974,49 +998,67 @@ export default function TrangChiTietSan({ user: propUser }) {
                 </div>
               </div>
 
-              {/* Giờ bắt đầu & Thời lượng */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3 border-t border-slate-100">
+              {/* Giờ bắt đầu (Lưới chip trực quan) & Thời lượng */}
+              <div className="space-y-4 pt-3 border-t border-slate-100">
                 <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-2 flex items-center justify-between">
-                    <span className="flex items-center gap-1.5">
+                  <div className="flex items-center justify-between flex-wrap gap-2 mb-2.5">
+                    <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
                       <Clock className="w-4 h-4 text-brand-600" />
-                      <span>Giờ bắt đầu thuê:</span>
-                    </span>
-                    <span className="text-[10px] text-amber-600 font-semibold">
-                      ⚡ 17:00-21:00: Giờ vàng (+20%)
-                    </span>
-                  </label>
-                  <select
-                    value={startSlot}
-                    onChange={(e) => setStartSlot(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
-                  >
+                      <span>Chọn giờ bắt đầu thuê:</span>
+                    </label>
+                    <div className="flex items-center gap-3 text-[10px] font-semibold">
+                      <span className="text-amber-600">🔥 17:00–21:00: Giờ vàng</span>
+                      <span className="text-slate-400">⬜ Mờ: Qua giờ / Kín lịch</span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
                     {DANH_SACH_KHUNG_GIO.map((slot) => {
                       const laQuaKhu = kiemTraGioQuaKhu(selectedDate, slot.value);
                       const prefix = slot.value.slice(0, 5);
                       const kg = khungGioKhaDung.find(k => (k.slotStart || '').slice(0, 5) === prefix);
                       const daDat = kg && !kg.available && kg.reason !== 'PAST';
                       const khongKhaDung = laQuaKhu || daDat;
-
-                      let ghiChu = '';
-                      if (laQuaKhu) ghiChu = ' ⛔ (Đã qua giờ)';
-                      else if (daDat) ghiChu = ' 🔒 (Đã có người đặt)';
+                      const isSelected = startSlot === slot.value;
+                      const hourNum = Number(prefix.split(':')[0]);
+                      const isPeakHour = hourNum >= 17 && hourNum < 21;
 
                       return (
-                        <option
+                        <button
                           key={slot.value}
-                          value={slot.value}
+                          type="button"
                           disabled={khongKhaDung}
-                          className={khongKhaDung ? 'text-slate-400 bg-slate-100 italic' : 'text-slate-800'}
+                          onClick={() => setStartSlot(slot.value)}
+                          title={
+                            laQuaKhu
+                              ? 'Khung giờ này đã qua'
+                              : daDat
+                                ? 'Khung giờ này đã có người đặt'
+                                : isPeakHour
+                                  ? `${prefix} - Khung giờ vàng`
+                                  : `Chọn bắt đầu lúc ${prefix}`
+                          }
+                          className={`py-2 px-1.5 rounded-xl text-xs font-black transition relative flex items-center justify-center gap-0.5 ${
+                            khongKhaDung
+                              ? 'bg-slate-100 text-slate-300 line-through border border-slate-200/60 cursor-not-allowed'
+                              : isSelected
+                                ? 'bg-brand-600 text-white shadow-md shadow-brand-500/25 ring-2 ring-brand-500/25 scale-[1.03] cursor-pointer'
+                                : isPeakHour
+                                  ? 'bg-amber-50/80 hover:bg-amber-100 text-amber-900 border border-amber-200 cursor-pointer'
+                                  : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 cursor-pointer'
+                          }`}
                         >
-                          {slot.label}{ghiChu}
-                        </option>
+                          <span>{prefix}</span>
+                          {isPeakHour && !khongKhaDung && (
+                            <span className="text-[10px] leading-none">🔥</span>
+                          )}
+                        </button>
                       );
                     })}
-                  </select>
+                  </div>
                 </div>
 
-                <div>
+                <div className="pt-3 border-t border-slate-100">
                   <div className="flex items-center justify-between mb-2">
                     <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
                       <Zap className="w-4 h-4 text-amber-500" />
@@ -1049,7 +1091,7 @@ export default function TrangChiTietSan({ user: propUser }) {
                   </div>
 
                   {/* Nút bấm chọn nhanh các mốc giờ: 1h, 1.5h (90p), 2h, 3h, 4h, 6h */}
-                  <div className="grid grid-cols-6 gap-1">
+                  <div className="grid grid-cols-6 gap-1.5">
                     {[
                       { minutes: 60, label: '1h' },
                       { minutes: 90, label: '1.5h' },
@@ -1066,7 +1108,7 @@ export default function TrangChiTietSan({ user: propUser }) {
                           disabled={vuotGioDongCua}
                           onClick={() => setDurationMinutes(item.minutes)}
                           title={vuotGioDongCua ? `Vượt quá giờ đóng cửa (${gioDongCuaStr.slice(0, 5)}). Tối đa ${Math.floor(thoiLuongToiDaPhut / 60)}h${thoiLuongToiDaPhut % 60 ? `${thoiLuongToiDaPhut % 60}p` : ''}.` : ''}
-                          className={`py-2 rounded-xl text-[11px] font-black transition text-center ${
+                          className={`py-2 rounded-xl text-xs font-black transition text-center ${
                             vuotGioDongCua
                               ? 'bg-slate-100 text-slate-300 border border-slate-200/50 cursor-not-allowed opacity-40'
                               : durationMinutes === item.minutes
@@ -1210,7 +1252,7 @@ export default function TrangChiTietSan({ user: propUser }) {
                           onClick={(e) => e.stopPropagation()}
                         >
                           <p className="text-[11px] font-bold text-amber-900">
-                            Chọn dòng vợt muốn thuê:
+                            {item.id === 'fb_shoes' ? 'Chọn size giày muốn thuê:' : 'Chọn dòng vợt muốn thuê:'}
                           </p>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                             {item.variants.map((v) => {
@@ -1404,14 +1446,19 @@ export default function TrangChiTietSan({ user: propUser }) {
 
               {/* Bảng kê tổng chi phí */}
               <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/60 space-y-2 text-xs">
-                <div className="flex justify-between text-slate-600">
-                  <span className="flex items-center gap-1.5">
+                <div className="flex justify-between items-center text-slate-600 gap-2">
+                  <span className="flex items-center gap-1.5 flex-wrap">
                     <span>Tiền thuê sân ({thoiLuongHienThi}):</span>
+                    {tongTienSan > Math.round(donGiaSan * (durationMinutes / 60)) && (
+                      <span className="text-[10px] font-black text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded-md">
+                        🔥 Giờ vàng
+                      </span>
+                    )}
                     {previewLoading && (
                       <span className="text-[10px] text-brand-600 animate-pulse">(đang tính...)</span>
                     )}
                   </span>
-                  <span className="font-bold text-slate-800">{tongTienSan.toLocaleString('vi-VN')} đ</span>
+                  <span className="font-bold text-slate-800 shrink-0">{tongTienSan.toLocaleString('vi-VN')} đ</span>
                 </div>
 
                 {tongTienDichVu > 0 && (
