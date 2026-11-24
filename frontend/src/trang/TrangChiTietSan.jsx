@@ -220,13 +220,16 @@ export default function TrangChiTietSan({ user: propUser }) {
   const [selectedAddons, setSelectedAddons] = useState({});
   const scrollKhungGioRef = useRef(null);
   
-  // State thời gian thuê
-  const [selectedDate, setSelectedDate] = useState(() => layNgayTheoOffset(0));
+  // State thời gian thuê (Nếu hôm nay đã hết khung giờ trống -> tự chuyển mặc định sang Ngày mai)
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const homNay = layNgayTheoOffset(0);
+    const conGioHomNay = DANH_SACH_KHUNG_GIO.some(s => !kiemTraGioQuaKhu(homNay, s.value));
+    return conGioHomNay ? homNay : layNgayTheoOffset(1);
+  });
   const [startSlot, setStartSlot] = useState(() => {
-    // Tự động chọn khung giờ hợp lệ đầu tiên nếu đặt hôm nay
     const homNay = layNgayTheoOffset(0);
     const hopLe = DANH_SACH_KHUNG_GIO.find(s => !kiemTraGioQuaKhu(homNay, s.value));
-    return hopLe ? hopLe.value : '18:00:00';
+    return hopLe ? hopLe.value : '06:00:00';
   });
   const [durationMinutes, setDurationMinutes] = useState(60);
   const [previewGia, setPreviewGia] = useState(null);
@@ -1067,6 +1070,22 @@ export default function TrangChiTietSan({ user: propUser }) {
                       <ChevronRight className="w-4 h-4" />
                     </button>
                   </div>
+
+                  {DANH_SACH_KHUNG_GIO.every(s => kiemTraGioQuaKhu(selectedDate, s.value)) && (
+                    <div className="mt-2 p-2.5 rounded-xl bg-amber-50 border border-amber-200/80 flex items-center justify-between gap-2 text-xs text-amber-800">
+                      <span className="font-medium">⏰ Hôm nay đã hết khung giờ mở đặt sân.</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedDate(layNgayTheoOffset(1));
+                          setStartSlot('06:00:00');
+                        }}
+                        className="px-3 py-1 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold text-[11px] transition cursor-pointer shrink-0"
+                      >
+                        Chuyển sang Ngày mai →
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 <div className="pt-3 border-t border-slate-100">
