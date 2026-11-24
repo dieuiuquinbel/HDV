@@ -356,9 +356,9 @@ public class DichVuThanhToan {
 
     @Transactional(readOnly = true)
     public Map<String, BigDecimal> tinhBaoCaoDoanhThu(Instant from, Instant to) {
-        BigDecimal net = khoGiaoDichThanhToan.tinhTongDoanhThuNet(from, to);
         BigDecimal gross = khoGiaoDichThanhToan.tinhTongDoanhThuGross(from, to);
-        BigDecimal refund = khoGiaoDichThanhToan.tinhTongHoanTien(from, to);
+        BigDecimal refund = khoHoanTien.tinhTongTienHoanThucTe(from, to);
+        BigDecimal net = gross.subtract(refund).max(BigDecimal.ZERO);
         return Map.of(
                 "grossRevenue", gross,
                 "refundedAmount", refund,

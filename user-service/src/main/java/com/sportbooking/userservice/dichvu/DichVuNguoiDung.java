@@ -22,9 +22,12 @@ import com.sportbooking.userservice.thucthe.VaiTro;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -41,6 +44,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class DichVuNguoiDung {
 
     private final KhoNguoiDung khoNguoiDung;
@@ -48,6 +52,11 @@ public class DichVuNguoiDung {
     private final PasswordEncoder passwordEncoder;
     private final DichVuJwt dichVuJwt;
     private final DichVuEmailOtp dichVuEmailOtp;
+
+    @Autowired(required = false)
+    private StringRedisTemplate redisTemplate;
+
+    private static final String REDIS_TOKEN_VERSION_PREFIX = "user:token_version:";
 
     @Value("${app.otp.expose-in-response:false}")
     private boolean exposeOtpInResponse;
@@ -294,6 +303,9 @@ public class DichVuNguoiDung {
         user.setTokenVersion(user.getTokenVersion() + 1); // Tang phien de huy token cu
         user = khoNguoiDung.save(user);
 
+        int cacheVal = (statusMoi == TrangThaiNguoiDung.ACTIVE) ? user.getTokenVersion() : -1;
+        dongBoCacheTokenVersionRedis(user.getId(), cacheVal);
+
         return TraVeNguoiDung.tuThucThe(user);
     }
 
@@ -331,11 +343,17 @@ public class DichVuNguoiDung {
         if (yeuCau.getPhone() != null) {
             user.setPhone(yeuCau.getPhone().trim());
         }
+        boolean doiQuyen = false;
         if (yeuCau.getRole() != null) {
             user.setRole(yeuCau.getRole());
             user.setTokenVersion(user.getTokenVersion() + 1); // Thay doi quyen thi lam moi phien
+            doiQuyen = true;
         }
         user = khoNguoiDung.save(user);
+        if (doiQuyen) {
+            int cacheVal = (user.getStatus() == TrangThaiNguoiDung.ACTIVE) ? user.getTokenVersion() : -1;
+            dongBoCacheTokenVersionRedis(user.getId(), cacheVal);
+        }
         return TraVeNguoiDung.tuThucThe(user);
     }
 
@@ -359,6 +377,23 @@ public class DichVuNguoiDung {
         }
 
         khoNguoiDung.delete(user);
+        dongBoCacheTokenVersionRedis(id, -1);
+    }
+
+    private void dongBoCacheTokenVersionRedis(Long userId, int versionValue) {
+        if (redisTemplate == null || userId == null) {
+            return;
+        }
+        try {
+            redisTemplate.opsForValue().set(
+                    REDIS_TOKEN_VERSION_PREFIX + userId,
+                    String.valueOf(versionValue),
+                    java.time.Duration.ofMinutes(5)
+            );
+            log.info("[Redis] Da dong bo cache {}{} = {}", REDIS_TOKEN_VERSION_PREFIX, userId, versionValue);
+        } catch (Exception ex) {
+            log.debug("[Redis] Khong the dong bo cache cho userId={} ({}), bo qua.", userId, ex.getMessage());
+        }
     }
 
     @Transactional(readOnly = true)

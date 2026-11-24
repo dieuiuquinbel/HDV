@@ -22,6 +22,38 @@ services:
       timeout: 5s
       retries: 10
 
+  redis:
+    image: redis:7-alpine
+    container_name: sport-redis
+    restart: always
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    networks:
+      - sport-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: sport-rabbitmq
+    restart: always
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:-guest}
+    ports:
+      - "${RABBITMQ_PORT:-5672}:5672"
+      - "${RABBITMQ_MGMT_PORT:-15672}:15672"
+    networks:
+      - sport-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
   api-gateway:
     build:
       context: .
@@ -38,14 +70,23 @@ services:
       - PAYMENT_SERVICE_URL=http://payment-service:8084
       - NOTIFICATION_SERVICE_URL=http://notification-service:8085
       - FRONTEND_URL=http://localhost:5173
+      - SPRING_DATA_REDIS_HOST=redis
+      - SPRING_DATA_REDIS_PORT=6379
       - JWT_SECRET=${JWT_SECRET:-404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
       - INTERNAL_API_KEY=${INTERNAL_API_KEY:-sport-internal-secret-key-2026-very-secure}
     depends_on:
-      - user-service
-      - court-service
-      - booking-service
-      - payment-service
-      - notification-service
+      redis:
+        condition: service_healthy
+      user-service:
+        condition: service_started
+      court-service:
+        condition: service_started
+      booking-service:
+        condition: service_started
+      payment-service:
+        condition: service_started
+      notification-service:
+        condition: service_started
     networks:
       - sport-network
 
@@ -68,8 +109,12 @@ services:
       - SMTP_PORT=${SMTP_PORT:-587}
       - SMTP_USER=${SMTP_USER:-}
       - SMTP_PASS=${SMTP_PASS:-}
+      - SPRING_DATA_REDIS_HOST=redis
+      - SPRING_DATA_REDIS_PORT=6379
     depends_on:
       mysql:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     networks:
       - sport-network
@@ -111,10 +156,16 @@ services:
       - COURT_SERVICE_URL=http://court-service:8082
       - PAYMENT_SERVICE_URL=http://payment-service:8084
       - NOTIFICATION_SERVICE_URL=http://notification-service:8085
+      - SPRING_RABBITMQ_HOST=rabbitmq
+      - SPRING_RABBITMQ_PORT=5672
+      - SPRING_RABBITMQ_USERNAME=${RABBITMQ_USER:-guest}
+      - SPRING_RABBITMQ_PASSWORD=${RABBITMQ_PASS:-guest}
       - JWT_SECRET=${JWT_SECRET:-404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
       - INTERNAL_API_KEY=${INTERNAL_API_KEY:-sport-internal-secret-key-2026-very-secure}
     depends_on:
       mysql:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     networks:
       - sport-network
@@ -134,10 +185,16 @@ services:
       - SPRING_DATASOURCE_PASSWORD=${MYSQL_PASSWORD:-123456}
       - BOOKING_SERVICE_URL=http://booking-service:8083
       - NOTIFICATION_SERVICE_URL=http://notification-service:8085
+      - SPRING_RABBITMQ_HOST=rabbitmq
+      - SPRING_RABBITMQ_PORT=5672
+      - SPRING_RABBITMQ_USERNAME=${RABBITMQ_USER:-guest}
+      - SPRING_RABBITMQ_PASSWORD=${RABBITMQ_PASS:-guest}
       - JWT_SECRET=${JWT_SECRET:-404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
       - INTERNAL_API_KEY=${INTERNAL_API_KEY:-sport-internal-secret-key-2026-very-secure}
     depends_on:
       mysql:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     networks:
       - sport-network
@@ -156,8 +213,14 @@ services:
       - SPRING_DATASOURCE_USERNAME=${MYSQL_USER:-sport_user}
       - SPRING_DATASOURCE_PASSWORD=${MYSQL_PASSWORD:-123456}
       - INTERNAL_API_KEY=${INTERNAL_API_KEY:-sport-internal-secret-key-2026-very-secure}
+      - SPRING_RABBITMQ_HOST=rabbitmq
+      - SPRING_RABBITMQ_PORT=5672
+      - SPRING_RABBITMQ_USERNAME=${RABBITMQ_USER:-guest}
+      - SPRING_RABBITMQ_PASSWORD=${RABBITMQ_PASS:-guest}
     depends_on:
       mysql:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     networks:
       - sport-network

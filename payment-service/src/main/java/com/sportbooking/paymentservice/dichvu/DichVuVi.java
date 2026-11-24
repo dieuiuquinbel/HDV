@@ -191,6 +191,7 @@ public class DichVuVi {
                     if (summary.getCustomerId() != null && !summary.getCustomerId().equals(userId)) {
                         throw new LoiNghiepVu(HttpStatus.FORBIDDEN, "FORBIDDEN", "Bạn không có quyền thanh toán đơn đặt sân của người khác.");
                     }
+                    String walletRef = "WALLET-" + bookingId + "-" + System.currentTimeMillis();
                     GiaoDichThanhToan moi = GiaoDichThanhToan.builder()
                             .bookingId(bookingId)
                             .customerId(userId)
@@ -198,6 +199,8 @@ public class DichVuVi {
                             .currency("VND")
                             .method("WALLET")
                             .status(TrangThaiThanhToan.PENDING)
+                            .transactionCode("TX-" + walletRef)
+                            .currentAttemptReference("ATT-" + walletRef)
                             .build();
                     return khoGiaoDichThanhToan.save(moi);
                 });
