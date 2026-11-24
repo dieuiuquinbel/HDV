@@ -9,7 +9,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
-  Bot,
   Sparkles,
   BellRing,
   X,
@@ -25,12 +24,100 @@ import {
 import { apiDichVu } from '../dichvu/api';
 import { DANH_MUC_KIOSK } from '../hangso/danhMucDichVu';
 
+// Logo Tro Ly AI ESportKing thiet ke rieng (SVG sac net, hien dai)
+function LogoTroLyAI({ className = 'w-5 h-5' }) {
+  return (
+    <svg viewBox="0 0 32 32" fill="none" className={className} aria-hidden="true">
+      <defs>
+        <linearGradient id="ekAiGrad" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#ffffff" />
+          <stop offset="100%" stopColor="#fde68a" />
+        </linearGradient>
+      </defs>
+      <path
+        d="M16 3C16.9 9.2 22.8 15.1 29 16C22.8 16.9 16.9 22.8 16 29C15.1 22.8 9.2 16.9 3 16C9.2 15.1 15.1 9.2 16 3Z"
+        fill="url(#ekAiGrad)"
+      />
+      <circle cx="25.5" cy="6.5" r="2.2" fill="#ffffff" opacity="0.95" />
+      <circle cx="7" cy="25" r="1.4" fill="#fde68a" opacity="0.9" />
+    </svg>
+  );
+}
+
 const GOI_Y_MAC_DINH = [
   'Cách đặt sân?',
   'Mã giảm giá',
   'Hủy & hoàn tiền',
+  'Địa chỉ 3 cơ sở',
+  'Giá & giờ vàng',
   'Lỗi QR check-in'
 ];
+
+// Bo cau tra loi FAQ co san (tra loi tuc thi 0ms, khong ton token AI)
+const FAQ_CO_SAN = [
+  {
+    keys: ['mã giảm giá', 'voucher', 'ưu đãi', 'khuyến mãi'],
+    reply:
+      'Mã giảm giá đang áp dụng tại ESportKing:\n' +
+      '• CHAOBANMOI: Giảm 20% (tối đa 50.000đ) cho thành viên mới.\n' +
+      '• THELUC2026: Giảm 15% (tối đa 40.000đ) từ Thứ 2 - Thứ 5.\n' +
+      '• CUOITUAN: Giảm 25.000đ cho đơn từ 150.000đ dịp cuối tuần.\n' +
+      '• VIPSPORT: Giảm 30.000đ cho đơn từ 200.000đ.\n' +
+      'Hệ thống sẽ tự động gợi ý mã lợi nhất khi bạn chọn giờ thuê!'
+  },
+  {
+    keys: ['cách đặt sân', 'đặt sân?', 'thuê sân'],
+    reply:
+      'Đặt sân tại ESportKing chỉ mất 30 giây:\n' +
+      '1. Vào mục "Tìm sân" -> chọn bộ môn (Bóng đá, Cầu lông, Tennis, Bóng rổ) & cơ sở.\n' +
+      '2. Chọn loại mặt sân, ngày chơi, khung giờ bắt đầu & thời lượng.\n' +
+      '3. Kiểm tra mã giảm giá -> bấm "Xác Nhận Thuê & Thanh Toán".\n' +
+      '4. Thanh toán qua Ví SportPay hoặc VietQR để nhận mã QR Check-in ngay!'
+  },
+  {
+    keys: ['hủy & hoàn tiền', 'hủy sân', 'hoàn tiền', 'refund'],
+    reply:
+      'Chính sách Hủy sân & Hoàn tiền:\n' +
+      '• Vào mục "Đặt sân của tôi" -> bấm "Hủy & Hoàn tiền" trên đơn chưa check-in.\n' +
+      '• Hệ thống tự động hoàn 50% giá trị đơn ngay lập tức vào Ví SportPay.\n' +
+      '• Tiền trong ví có thể dùng đặt sân lần sau hoặc rút về ngân hàng.'
+  },
+  {
+    keys: ['địa chỉ 3 cơ sở', 'địa chỉ', '3 cơ sở', 'ở đâu'],
+    reply:
+      'Hệ thống 3 cơ sở ESportKing Hà Nội (06:00 - 22:30):\n' +
+      '• Cơ Sở 1 (Cầu Giấy): Số 18 Phố Duy Tân, Dịch Vọng Hậu.\n' +
+      '• Cơ Sở 2 (Đống Đa): Số 102 Phố Trường Chinh, Phương Mai.\n' +
+      '• Cơ Sở 3 (Hà Đông): Số 27 Đường Quang Trung, Hà Đông.\n' +
+      'Mỗi cơ sở gồm 10 sân chuẩn thi đấu (Bóng đá, Cầu lông, Tennis, Bóng rổ).'
+  },
+  {
+    keys: ['giá & giờ vàng', 'giờ vàng', 'giá sân', 'đèn led'],
+    reply:
+      'Cách tính giá thuê sân tại ESportKing:\n' +
+      '• Giờ thường (06:00 - 17:00): Tính đúng đơn giá cơ bản của từng sân.\n' +
+      '• Giờ vàng (17:00 - 21:00): Cộng phụ phí đèn LED & cao điểm (+50%).\n' +
+      '• Dụng cụ kèm theo (bóng, vợt, áo bib) tính trọn gói theo ca, không nhân theo giờ.'
+  },
+  {
+    keys: ['lỗi qr', 'qr check-in', 'không quét được', 'nhầm cơ sở'],
+    reply:
+      'Hướng dẫn & xử lý lỗi Check-in QR:\n' +
+      '• Mở "Đặt sân của tôi" -> bấm "Phóng to đưa nhân viên quét" (hoặc copy mã Token).\n' +
+      '• Nếu đi nhầm cơ sở, trạm quầy sẽ tự báo và mở Google Maps chỉ sang đúng cơ sở.\n' +
+      '• Nếu báo lỗi đăng nhập (401): Bấm Avatar góc phải -> Đăng xuất rồi Đăng nhập lại.'
+  }
+];
+
+function traLoiFaqCoSan(text) {
+  const q = text.toLowerCase().trim();
+  for (const item of FAQ_CO_SAN) {
+    if (item.keys.some(k => q === k || (q.length <= 40 && q.includes(k)))) {
+      return item.reply;
+    }
+  }
+  return null;
+}
 
 const FAB_W = 132;
 const FAB_H = 44;
@@ -217,8 +304,19 @@ export default function NutGoiDichVuFAB({ user }) {
     const nextMessages = [...tinNhan, userMsg];
     setTinNhan(nextMessages);
     setONhapChat('');
-    setDangTraLoi(true);
 
+    // Tang 1: Tra loi tuc thi tu bo FAQ co san (0ms, khong ton token AI)
+    const faqReply = traLoiFaqCoSan(text);
+    if (faqReply) {
+      setTinNhan(prev => [
+        ...prev,
+        { id: `faq-${Date.now()}`, role: 'model', text: faqReply, source: 'FAQ' }
+      ]);
+      return;
+    }
+
+    // Tang 2: Chi goi Gemini AI cho cac cau hoi tu do / phuc tap
+    setDangTraLoi(true);
     try {
       const historyPayload = nextMessages
         .filter(m => m.id !== 'welcome')
@@ -252,8 +350,8 @@ export default function NutGoiDichVuFAB({ user }) {
         {
           id: `err-${Date.now()}`,
           role: 'model',
-          text: 'Hiện tại máy chủ Trợ Lý AI đang khởi động lại hoặc tạm gián đoạn. Bạn thử lại sau vài giây nhé!',
-          source: 'OFFLINE'
+          text: 'Mình chưa kết nối được với máy chủ AI lúc này. Bạn có thể bấm các nút câu hỏi mẫu bên dưới (Cách đặt sân, Mã giảm giá, Hủy & hoàn tiền, Địa chỉ 3 cơ sở...) để nhận câu trả lời ngay lập tức nhé!',
+          source: 'FAQ'
         }
       ]);
     } finally {
@@ -338,9 +436,9 @@ export default function NutGoiDichVuFAB({ user }) {
         type="button"
         onClick={() => setDaAnBot(false)}
         title="Hiện lại Trợ Lý AI"
-        className="fixed bottom-4 left-0 z-40 pl-2 pr-2.5 py-2 bg-slate-900/80 hover:bg-brand-600 text-white rounded-r-full shadow-lg transition flex items-center gap-1 cursor-pointer"
+        className="fixed bottom-4 left-0 z-40 pl-2 pr-2.5 py-2 bg-gradient-to-r from-brand-600 to-rose-500 hover:from-brand-700 hover:to-rose-600 text-white rounded-r-full shadow-lg transition flex items-center gap-1 cursor-pointer"
       >
-        <Bot className="w-4 h-4" />
+        <LogoTroLyAI className="w-4 h-4" />
       </button>
     );
   }
@@ -382,7 +480,7 @@ export default function NutGoiDichVuFAB({ user }) {
             }`}
           >
             <div className="relative flex items-center justify-center">
-              {moWidget ? <X className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
+              {moWidget ? <X className="w-4 h-4" /> : <LogoTroLyAI className="w-4 h-4" />}
               {!moWidget && (
                 <span className="absolute -top-1 -right-1 flex h-2 w-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-300 opacity-75"></span>
@@ -414,8 +512,8 @@ export default function NutGoiDichVuFAB({ user }) {
           {/* Header nho gon */}
           <div className="px-3.5 py-2.5 bg-gradient-to-r from-slate-900 via-slate-800 to-brand-900 text-white flex items-center justify-between shrink-0">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-brand-500 to-amber-400 flex items-center justify-center shadow-sm shrink-0">
-                <Bot className="w-4 h-4 text-white" />
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-brand-500 via-rose-500 to-amber-400 flex items-center justify-center shadow-md shadow-brand-500/30 shrink-0 ring-1 ring-white/25">
+                <LogoTroLyAI className="w-5 h-5" />
               </div>
               <div className="text-left">
                 <div className="flex items-center gap-1.5">
@@ -488,7 +586,13 @@ export default function NutGoiDichVuFAB({ user }) {
                         {!isUser && msg.id !== 'welcome' && (
                           <div className="mt-1 pt-1 border-t border-slate-100 flex items-center gap-1 text-[9px] font-bold text-slate-400">
                             <Sparkles className="w-2.5 h-2.5 text-brand-500" />
-                            <span>{msg.source === 'GEMINI' ? 'Gemini AI' : 'Trợ lý ESportKing'}</span>
+                            <span>
+                              {msg.source === 'GEMINI'
+                                ? 'Gemini AI'
+                                : msg.source === 'FAQ'
+                                ? 'Trả lời nhanh ESportKing'
+                                : 'Trợ lý ESportKing'}
+                            </span>
                           </div>
                         )}
                       </div>
