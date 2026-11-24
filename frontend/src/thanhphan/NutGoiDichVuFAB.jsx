@@ -24,23 +24,17 @@ import {
 import { apiDichVu } from '../dichvu/api';
 import { DANH_MUC_KIOSK } from '../hangso/danhMucDichVu';
 
-// Logo Tro Ly AI ESportKing thiet ke rieng (SVG sac net, hien dai)
-function LogoTroLyAI({ className = 'w-5 h-5' }) {
+// Logo Tro Ly AI ESportKing (su dung anh mascot meo tai frontend/public/images/ai-mascot.webp)
+function LogoTroLyAI({ className = 'w-6 h-6' }) {
   return (
-    <svg viewBox="0 0 32 32" fill="none" className={className} aria-hidden="true">
-      <defs>
-        <linearGradient id="ekAiGrad" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#ffffff" />
-          <stop offset="100%" stopColor="#fde68a" />
-        </linearGradient>
-      </defs>
-      <path
-        d="M16 3C16.9 9.2 22.8 15.1 29 16C22.8 16.9 16.9 22.8 16 29C15.1 22.8 9.2 16.9 3 16C9.2 15.1 15.1 9.2 16 3Z"
-        fill="url(#ekAiGrad)"
+    <span className={`inline-flex items-center justify-center rounded-full overflow-hidden bg-slate-900 ring-1 ring-white/40 shrink-0 ${className}`}>
+      <img
+        src="/images/ai-mascot.webp"
+        alt="Trợ Lý ESportKing"
+        className="w-full h-full object-cover scale-[1.18]"
+        draggable={false}
       />
-      <circle cx="25.5" cy="6.5" r="2.2" fill="#ffffff" opacity="0.95" />
-      <circle cx="7" cy="25" r="1.4" fill="#fde68a" opacity="0.9" />
-    </svg>
+    </span>
   );
 }
 
@@ -480,11 +474,11 @@ export default function NutGoiDichVuFAB({ user }) {
             }`}
           >
             <div className="relative flex items-center justify-center">
-              {moWidget ? <X className="w-4 h-4" /> : <LogoTroLyAI className="w-4 h-4" />}
+              {moWidget ? <X className="w-4 h-4" /> : <LogoTroLyAI className="w-7 h-7" />}
               {!moWidget && (
-                <span className="absolute -top-1 -right-1 flex h-2 w-2">
+                <span className="absolute -top-0.5 -right-0.5 flex h-2.5 w-2.5">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-300 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400 border border-white"></span>
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-400 border border-white"></span>
                 </span>
               )}
             </div>
@@ -512,9 +506,7 @@ export default function NutGoiDichVuFAB({ user }) {
           {/* Header nho gon */}
           <div className="px-3.5 py-2.5 bg-gradient-to-r from-slate-900 via-slate-800 to-brand-900 text-white flex items-center justify-between shrink-0">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-brand-500 via-rose-500 to-amber-400 flex items-center justify-center shadow-md shadow-brand-500/30 shrink-0 ring-1 ring-white/25">
-                <LogoTroLyAI className="w-5 h-5" />
-              </div>
+              <LogoTroLyAI className="w-9 h-9 shadow-md" />
               <div className="text-left">
                 <div className="flex items-center gap-1.5">
                   <h3 className="text-xs font-black tracking-tight">Trợ Lý ESportKing</h3>
