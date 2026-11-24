@@ -215,7 +215,7 @@ export default function TrangChiTietSan({ user: propUser }) {
   }, [danhSachSanBienThe, courtCodeParam]);
 
   // State tiện ích kèm theo
-  const [selectedAddons, setSelectedAddons] = useState([]);
+  const [selectedAddons, setSelectedAddons] = useState({});
   
   // State thời gian thuê
   const [selectedDate, setSelectedDate] = useState(() => layNgayTheoOffset(0));
@@ -291,13 +291,45 @@ export default function TrangChiTietSan({ user: propUser }) {
     return DICH_VU_THEO_MON[maMon] || DICH_VU_THEO_MON.FOOTBALL;
   }, [maMon]);
 
+  // Reset dich vu da chon khi doi mon the thao
+  useEffect(() => {
+    setSelectedAddons({});
+  }, [maMon]);
+
+  // Danh sach chi tiet cac dich vu da chon (ho tro so luong & mau ma vot)
+  const chiTietDichVuDaChon = useMemo(() => {
+    return Object.entries(selectedAddons)
+      .map(([addonId, sel]) => {
+        const item = danhSachDichVu.find(d => d.id === addonId);
+        if (!item) return null;
+        const variant = item.variants?.find(v => v.id === sel.variantId) || item.variants?.[0] || null;
+        const unitPrice = variant ? variant.price : item.price;
+        const qty = item.allowQuantity ? Math.max(1, Number(sel.qty || 1)) : 1;
+        const subtotal = unitPrice * qty;
+        const displayName = variant ? `${item.name} (${variant.name})` : item.name;
+        const summaryLabel = qty > 1 ? `${displayName} × ${qty}` : displayName;
+        return {
+          ...item,
+          qty,
+          variant,
+          unitPrice,
+          subtotal,
+          displayName,
+          summaryLabel
+        };
+      })
+      .filter(Boolean);
+  }, [selectedAddons, danhSachDichVu]);
+
+  const soDichVuDaChon = chiTietDichVuDaChon.length;
+  const addonSummaryText = useMemo(() => {
+    return chiTietDichVuDaChon.map(d => d.summaryLabel).join(', ');
+  }, [chiTietDichVuDaChon]);
+
   // Tổng tiền các dịch vụ kèm theo đã chọn
   const tongTienDichVu = useMemo(() => {
-    return selectedAddons.reduce((sum, addonId) => {
-      const item = danhSachDichVu.find(d => d.id === addonId);
-      return sum + (item ? item.price : 0);
-    }, 0);
-  }, [selectedAddons, danhSachDichVu]);
+    return chiTietDichVuDaChon.reduce((sum, item) => sum + item.subtotal, 0);
+  }, [chiTietDichVuDaChon]);
 
   // Gọi API tính báo giá Realtime từ Backend Booking Service (chuẩn xác 100% về tiền & voucher & giờ đóng/mở)
   useEffect(() => {
@@ -323,7 +355,7 @@ export default function TrangChiTietSan({ user: propUser }) {
       durationMinutes: Number(durationMinutes),
       voucherCode: selectedVoucher || null,
       addonAmount: tongTienDichVu,
-      addonSummary: selectedAddons.map(id => danhSachDichVu.find(d => d.id === id)?.name).filter(Boolean).join(', ')
+      addonSummary: addonSummaryText
     })
       .then(res => {
         if (!cancel && res.data) {
@@ -346,7 +378,7 @@ export default function TrangChiTietSan({ user: propUser }) {
     return () => {
       cancel = true;
     };
-  }, [selectedCourt?.realCourtId, selectedCourt?.id, selectedDate, startSlot, durationMinutes, selectedVoucher, tongTienDichVu]);
+  }, [selectedCourt?.realCourtId, selectedCourt?.id, selectedDate, startSlot, durationMinutes, selectedVoucher, tongTienDichVu, addonSummaryText]);
 
   // Trạng thái submit & hết hạn phiên
   const [submitting, setSubmitting] = useState(false);
@@ -354,12 +386,49 @@ export default function TrangChiTietSan({ user: propUser }) {
   const [isSessionExpired, setIsSessionExpired] = useState(false);
 
   // Toggle dịch vụ kèm theo
-  const toggleDichVu = (addonId) => {
-    if (selectedAddons.includes(addonId)) {
-      setSelectedAddons(selectedAddons.filter(id => id !== addonId));
-    } else {
-      setSelectedAddons([...selectedAddons, addonId]);
-    }
+  const toggleDichVu = (item) => {
+    setSelectedAddons(prev => {
+      if (prev[item.id]) {
+        const next = { ...prev };
+        delete next[item.id];
+        return next;
+      }
+      return {
+        ...prev,
+        [item.id]: {
+          qty: 1,
+          variantId: item.variants?.[0]?.id || null
+        }
+      };
+    });
+  };
+
+  // Tang/giam so luong dich vu
+  const doiSoLuongDichVu = (e, item, delta) => {
+    e.stopPropagation();
+    setSelectedAddons(prev => {
+      const cur = prev[item.id];
+      if (!cur) return prev;
+      const maxQty = item.maxQty || 5;
+      const nextQty = Math.min(maxQty, Math.max(1, (cur.qty || 1) + delta));
+      return {
+        ...prev,
+        [item.id]: { ...cur, qty: nextQty }
+      };
+    });
+  };
+
+  // Doi mau ma vot (Cau long / Tennis)
+  const doiMauDichVu = (e, itemId, variantId) => {
+    e.stopPropagation();
+    setSelectedAddons(prev => {
+      const cur = prev[itemId];
+      if (!cur) return prev;
+      return {
+        ...prev,
+        [itemId]: { ...cur, variantId }
+      };
+    });
   };
 
   // Giờ đóng cửa lấy động từ Backend (hoặc fallback 22:30). Tính thời lượng tối đa cho phép
@@ -571,7 +640,13 @@ export default function TrangChiTietSan({ user: propUser }) {
         durationHours: Number((durationMinutes / 60).toFixed(1)),
         courtPrice: donGiaSan,
         totalCourtPrice: tongTienSan,
-        addons: selectedAddons.map(id => danhSachDichVu.find(d => d.id === id)).filter(Boolean),
+        addons: chiTietDichVuDaChon.map(d => ({
+          id: d.id,
+          name: d.summaryLabel,
+          price: d.subtotal,
+          qty: d.qty,
+          variantName: d.variant?.name || null
+        })),
         addonsPrice: tongTienDichVu,
         voucherCode: selectedVoucher,
         discountAmount: tienGiam,
@@ -589,7 +664,7 @@ export default function TrangChiTietSan({ user: propUser }) {
         slotCount: Math.ceil(durationMinutes / 60),
         voucherCode: selectedVoucher || null,
         addonAmount: tongTienDichVu,
-        addonSummary: selectedAddons.map(id => danhSachDichVu.find(d => d.id === id)?.name).filter(Boolean).join(', ')
+        addonSummary: addonSummaryText
       };
       const idempotencyKey = `bk_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
       
@@ -1015,7 +1090,7 @@ export default function TrangChiTietSan({ user: propUser }) {
                 BƯỚC 3: DỊCH VỤ & TIỆN ÍCH KÈM THEO (CHỈ HIỂN THỊ ĐÚNG THEO MÔN ĐÓ)
                ========================================================================= */}
             <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-sm space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
                 <div>
                   <h2 className="text-base font-black text-slate-900 flex items-center gap-2">
                     <span className="w-6 h-6 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center text-xs font-black">
@@ -1024,56 +1099,145 @@ export default function TrangChiTietSan({ user: propUser }) {
                     <span>Dịch Vụ & Tiện Ích Kèm Theo (Môn {tenMonTiengViet})</span>
                   </h2>
                   <p className="text-xs text-slate-400 ml-8 mt-0.5">
-                    Tick chọn áo thi đấu, dụng cụ thể thao hoặc nước giải khát phục vụ tận sân
+                    Giá dịch vụ cho thuê tính <strong className="text-slate-600">trọn ca đặt sân</strong> (không phát sinh phụ phí theo giờ)
                   </p>
                 </div>
 
-                {selectedAddons.length > 0 && (
-                  <span className="text-xs font-black text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full">
-                    Đã chọn {selectedAddons.length} dịch vụ
-                  </span>
-                )}
+                <div className="flex items-center gap-2">
+                  {(maMon === 'FOOTBALL' || maMon === 'BASKETBALL') && (
+                    <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2.5 py-1 rounded-full">
+                      🎁 Sân đã có sẵn 1 bóng tiêu chuẩn
+                    </span>
+                  )}
+                  {soDichVuDaChon > 0 && (
+                    <span className="text-xs font-black text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full">
+                      Đã chọn {soDichVuDaChon} dịch vụ
+                    </span>
+                  )}
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                 {danhSachDichVu.map((item) => {
-                  const isChecked = selectedAddons.includes(item.id);
+                  const sel = selectedAddons[item.id];
+                  const isChecked = Boolean(sel);
+                  const activeVariant = item.variants?.find(v => v.id === sel?.variantId) || item.variants?.[0] || null;
+                  const unitPrice = activeVariant ? activeVariant.price : item.price;
+                  const qty = item.allowQuantity ? (sel?.qty || 1) : 1;
+                  const subtotal = unitPrice * qty;
 
                   return (
                     <div
                       key={item.id}
-                      onClick={() => toggleDichVu(item.id)}
-                      className={`p-3.5 rounded-2xl border-2 cursor-pointer transition-all flex items-start gap-3 ${
+                      onClick={() => toggleDichVu(item)}
+                      className={`p-3.5 rounded-2xl border-2 cursor-pointer transition-all flex flex-col gap-3 ${
+                        item.variants && isChecked ? 'sm:col-span-2' : ''
+                      } ${
                         isChecked
                           ? 'border-amber-500 bg-amber-50/40 shadow-sm'
                           : 'border-slate-200 hover:border-slate-300 bg-white'
                       }`}
                     >
-                      <div className="text-2xl shrink-0 mt-0.5">{item.icon}</div>
-                      
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-1">
-                          <p className={`text-xs font-bold leading-tight ${isChecked ? 'text-amber-950 font-black' : 'text-slate-800'}`}>
-                            {item.name}
+                      <div className="flex items-start gap-3">
+                        <div className="text-2xl shrink-0 mt-0.5">{item.icon}</div>
+
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-2">
+                            <p className={`text-xs font-bold leading-tight ${isChecked ? 'text-amber-950 font-black' : 'text-slate-800'}`}>
+                              {item.name}
+                            </p>
+                            <div className={`w-4 h-4 rounded-md border flex items-center justify-center shrink-0 mt-0.5 ${
+                              isChecked ? 'border-amber-600 bg-amber-600 text-white' : 'border-slate-300'
+                            }`}>
+                              {isChecked && <Check className="w-3 h-3 stroke-[3]" />}
+                            </div>
+                          </div>
+
+                          <p className="text-[11px] text-slate-500 mt-1 line-clamp-2">
+                            {item.desc}
                           </p>
-                          <div className={`w-4 h-4 rounded-md border flex items-center justify-center shrink-0 mt-0.5 ${
-                            isChecked ? 'border-amber-600 bg-amber-600 text-white' : 'border-slate-300'
-                          }`}>
-                            {isChecked && <Check className="w-3 h-3 stroke-[3]" />}
+
+                          <div className="mt-2.5 flex items-center justify-between gap-2 flex-wrap">
+                            <div className="flex items-baseline gap-1">
+                              <span className="text-xs font-black text-amber-600">
+                                +{(isChecked ? subtotal : unitPrice).toLocaleString('vi-VN')} đ
+                              </span>
+                              <span className="text-[10px] text-slate-400">
+                                {isChecked && qty > 1
+                                  ? `(${unitPrice.toLocaleString('vi-VN')}đ × ${qty})`
+                                  : `/${item.unit}`}
+                              </span>
+                            </div>
+
+                            {/* Bo chon so luong (- / +) khi da tich chon */}
+                            {isChecked && item.allowQuantity && (
+                              <div
+                                className="flex items-center gap-1.5 bg-white border border-amber-300 rounded-xl px-1.5 py-0.5 shadow-2xs"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <button
+                                  type="button"
+                                  onClick={(e) => doiSoLuongDichVu(e, item, -1)}
+                                  disabled={qty <= 1}
+                                  className="w-5 h-5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 font-black text-xs flex items-center justify-center disabled:opacity-40 cursor-pointer"
+                                >
+                                  −
+                                </button>
+                                <span className="text-xs font-black text-slate-800 min-w-[18px] text-center">
+                                  {qty}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={(e) => doiSoLuongDichVu(e, item, 1)}
+                                  disabled={qty >= (item.maxQty || 5)}
+                                  className="w-5 h-5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 font-black text-xs flex items-center justify-center disabled:opacity-40 cursor-pointer"
+                                >
+                                  +
+                                </button>
+                              </div>
+                            )}
                           </div>
                         </div>
-
-                        <p className="text-[11px] text-slate-500 mt-1 line-clamp-1">
-                          {item.desc}
-                        </p>
-
-                        <div className="mt-2 flex items-baseline gap-1">
-                          <span className="text-xs font-black text-amber-600">
-                            +{item.price.toLocaleString('vi-VN')} đ
-                          </span>
-                          <span className="text-[10px] text-slate-400">/{item.unit}</span>
-                        </div>
                       </div>
+
+                      {/* Bo chon mau ma vot cho mon Cau long & Tennis */}
+                      {isChecked && item.variants && (
+                        <div
+                          className="pt-2.5 border-t border-amber-200/70 space-y-2"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <p className="text-[11px] font-bold text-amber-900">
+                            Chọn dòng vợt muốn thuê:
+                          </p>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {item.variants.map((v) => {
+                              const isSelectedVar = activeVariant?.id === v.id;
+                              return (
+                                <button
+                                  key={v.id}
+                                  type="button"
+                                  onClick={(e) => doiMauDichVu(e, item.id, v.id)}
+                                  className={`p-2.5 rounded-xl border text-left transition cursor-pointer flex items-center justify-between gap-2 ${
+                                    isSelectedVar
+                                      ? 'border-amber-600 bg-white ring-2 ring-amber-500/20 shadow-2xs'
+                                      : 'border-slate-200 bg-white/70 hover:bg-white'
+                                  }`}
+                                >
+                                  <div className="min-w-0">
+                                    <p className={`text-xs font-bold truncate ${isSelectedVar ? 'text-amber-950' : 'text-slate-800'}`}>
+                                      {v.name}
+                                    </p>
+                                    <p className="text-[10px] text-slate-500 truncate">{v.tag}</p>
+                                  </div>
+                                  <span className="text-[11px] font-black text-amber-600 shrink-0">
+                                    {v.price.toLocaleString('vi-VN')}đ
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -1157,22 +1321,18 @@ export default function TrangChiTietSan({ user: propUser }) {
                 </div>
 
                 {/* Danh sách dịch vụ đã chọn */}
-                {selectedAddons.length > 0 && (
+                {soDichVuDaChon > 0 && (
                   <div className="py-2 border-b border-slate-100 space-y-1.5">
                     <div className="flex justify-between text-slate-500 font-bold">
-                      <span>Dịch vụ kèm theo ({selectedAddons.length}):</span>
+                      <span>Dịch vụ kèm theo ({soDichVuDaChon}):</span>
                       <span className="text-amber-700">+{tongTienDichVu.toLocaleString('vi-VN')} đ</span>
                     </div>
-                    {selectedAddons.map(id => {
-                      const item = danhSachDichVu.find(d => d.id === id);
-                      if (!item) return null;
-                      return (
-                        <div key={id} className="flex justify-between text-[11px] text-slate-600 pl-2">
-                          <span className="truncate max-w-[170px]">• {item.name}</span>
-                          <span className="font-semibold text-slate-700">+{item.price.toLocaleString('vi-VN')} đ</span>
-                        </div>
-                      );
-                    })}
+                    {chiTietDichVuDaChon.map(item => (
+                      <div key={item.id} className="flex justify-between gap-2 text-[11px] text-slate-600 pl-2">
+                        <span className="truncate">• {item.summaryLabel}</span>
+                        <span className="font-semibold text-slate-700 shrink-0">+{item.subtotal.toLocaleString('vi-VN')} đ</span>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
@@ -1253,7 +1413,7 @@ export default function TrangChiTietSan({ user: propUser }) {
 
                 {tongTienDichVu > 0 && (
                   <div className="flex justify-between text-amber-700 font-semibold bg-amber-50/80 p-2 rounded-xl border border-amber-200/60">
-                    <span>Dịch vụ & tiện ích kèm ({selectedAddons.length}):</span>
+                    <span>Dịch vụ & tiện ích kèm ({soDichVuDaChon}):</span>
                     <span className="font-bold">+{tongTienDichVu.toLocaleString('vi-VN')} đ</span>
                   </div>
                 )}
@@ -1279,7 +1439,7 @@ export default function TrangChiTietSan({ user: propUser }) {
 
                 {tongTienDichVu > 0 && (
                   <p className="text-[11px] text-emerald-600 font-semibold">
-                    ✓ Đã tính trọn gói tiền sân và {selectedAddons.length} dịch vụ đi kèm vào tổng thanh toán.
+                    ✓ Đã tính trọn gói tiền sân và {soDichVuDaChon} dịch vụ đi kèm vào tổng thanh toán.
                   </p>
                 )}
 
