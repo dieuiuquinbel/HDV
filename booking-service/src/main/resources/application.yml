@@ -42,6 +42,10 @@ notification-service:
 internal:
   api-key: ${INTERNAL_API_KEY:sport-internal-secret-key-2026-very-secure}
 
+gemini:
+  api-key: ${GEMINI_API_KEY:}
+  model: ${GEMINI_MODEL:gemini-2.5-flash}
+
 springdoc:
   api-docs:
     path: /v3/api-docs

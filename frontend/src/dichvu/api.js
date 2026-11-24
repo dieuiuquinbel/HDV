@@ -92,6 +92,7 @@ export const apiDichVu = {
   layDanhSachYeuCauDichVu: (params) => api.get('/bookings/service-requests', { params }),
   layYeuCauDichVuCuaToi: () => api.get('/bookings/service-requests/me'),
   capNhatTrangThaiYeuCauDichVu: (id, status) => api.patch(`/bookings/service-requests/${id}/status`, { status }),
+  troChuyenTroLyAi: (data) => api.post('/bookings/assistant/chat', data),
   layDonDatAdmin: (params) => api.get('/admin/bookings', { params }),
   layThongKeDonDat: (params) => api.get('/admin/statistics/bookings', { params }),
 
