@@ -113,8 +113,8 @@ function traLoiFaqCoSan(text) {
   return null;
 }
 
-const FAB_W = 56;
-const FAB_H = 56;
+const FAB_W = 72;
+const FAB_H = 72;
 const PANEL_W = 340;
 const PANEL_H = 460;
 const MARGIN = 16;
@@ -470,7 +470,7 @@ export default function NutGoiDichVuFAB({ user }) {
             }}
             aria-label="Mở Trợ Lý AI ESportKing"
             title="Nhấn để mở Trợ Lý AI • Nhấn giữ để kéo sang vị trí khác"
-            className={`relative w-14 h-14 rounded-full p-0.5 bg-gradient-to-tr from-brand-600 via-rose-500 to-amber-400 shadow-2xl shadow-brand-600/35 flex items-center justify-center transition-transform ${
+            className={`relative w-[72px] h-[72px] rounded-full p-[3px] bg-gradient-to-tr from-brand-600 via-rose-500 to-amber-400 shadow-2xl shadow-brand-600/40 flex items-center justify-center transition-transform ${
               dangKeo ? 'cursor-grabbing scale-110' : 'cursor-grab hover:scale-105'
             }`}
           >
