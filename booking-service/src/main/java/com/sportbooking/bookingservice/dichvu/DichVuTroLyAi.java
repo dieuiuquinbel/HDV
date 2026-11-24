@@ -31,7 +31,7 @@ public class DichVuTroLyAi {
     @Value("${gemini.model:gemini-3.8-flash}")
     private String geminiModel;
 
-    @Value("${gemini.fallback-model:gemini-2.5-flash}")
+    @Value("${gemini.fallback-model:gemini-3.6-flash}")
     private String geminiFallbackModel;
 
     private static final int MAX_MESSAGE_LENGTH = 800;
@@ -42,7 +42,7 @@ public class DichVuTroLyAi {
     );
 
     private static final java.util.regex.Pattern SENSITIVE_OUTPUT_PATTERN = java.util.regex.Pattern.compile(
-            "(AIza[0-9A-Za-z\\-_]{20,}|sk-[0-9A-Za-z]{20,}|sport-internal-secret-key|Bearer\\s+[A-Za-z0-9\\-._~+/]+=*)"
+            "(AIza[0-9A-Za-z\\-_]{20,}|AQ\\.[0-9A-Za-z\\-_]{20,}|sk-[0-9A-Za-z]{20,}|sport-internal-secret-key|Bearer\\s+[A-Za-z0-9\\-._~+/]+=*)"
     );
 
     private final HttpClient httpClient = HttpClient.newBuilder()

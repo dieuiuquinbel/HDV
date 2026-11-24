@@ -45,7 +45,7 @@ internal:
 gemini:
   api-key: ${GEMINI_API_KEY:}
   model: ${GEMINI_MODEL:gemini-3.8-flash}
-  fallback-model: ${GEMINI_FALLBACK_MODEL:gemini-2.5-flash}
+  fallback-model: ${GEMINI_FALLBACK_MODEL:gemini-3.6-flash}
 
 springdoc:
   api-docs:
