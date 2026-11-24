@@ -28,7 +28,7 @@ public class DichVuTroLyAi {
     @Value("${gemini.api-key:}")
     private String geminiApiKey;
 
-    @Value("${gemini.model:gemini-2.5-pro}")
+    @Value("${gemini.model:gemini-3.8-flash}")
     private String geminiModel;
 
     @Value("${gemini.fallback-model:gemini-2.5-flash}")
