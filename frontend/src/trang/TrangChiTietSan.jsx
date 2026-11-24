@@ -735,35 +735,25 @@ export default function TrangChiTietSan({ user: propUser }) {
             <span className="text-slate-900 font-bold">{coSoHienTai.ten}</span>
           </nav>
 
-          {/* Hero Banner Ảnh Sân Thực Tế + Thông tin cơ sở */}
-          <div className="relative rounded-3xl overflow-hidden shadow-lg border border-slate-200/80 min-h-[195px] sm:min-h-[215px] flex items-end">
+          {/* Hero Banner Ảnh Sân Thực Tế (Tối giản, thoáng gọn) */}
+          <div className="relative rounded-3xl overflow-hidden shadow-lg border border-slate-200/80 min-h-[165px] sm:min-h-[185px] flex items-end">
             <img
               src={selectedCourt?.image || '/images/courts/football/football_5_cs1.jpg'}
               alt={selectedCourt?.name || coSoHienTai.tenDayDu}
               className="absolute inset-0 w-full h-full object-cover object-center transition-all duration-500"
             />
-            <div className="absolute inset-0 bg-gradient-to-r from-slate-950/90 via-slate-900/70 to-slate-900/25" />
+            <div className="absolute inset-0 bg-gradient-to-r from-slate-950/85 via-slate-900/60 to-slate-900/20" />
 
-            <div className="relative z-10 w-full p-5 sm:p-6 flex flex-col md:flex-row md:items-end justify-between gap-4 text-white">
-              <div className="max-w-2xl">
+            <div className="relative z-10 w-full p-5 sm:p-6 flex flex-col sm:flex-row sm:items-end justify-between gap-3 text-white">
+              <div className="max-w-xl">
                 <div className="flex items-center gap-2 flex-wrap mb-2">
                   <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-black shadow-sm flex items-center gap-1 ${coSoHienTai.badgeClass}`}>
                     {coSoHienTai.icon} {coSoHienTai.ten}
                   </span>
 
-                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-white/15 backdrop-blur-md text-white border border-white/20">
-                    {iconMon} BỘ MÔN: {tenMonTiengViet.toUpperCase()}
-                  </span>
-
-                  {maMon === 'FOOTBALL' && (
-                    <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-amber-400 text-slate-950">
-                      SÂN {sizeParam} NGƯỜI
-                    </span>
-                  )}
-
                   <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-emerald-500/25 text-emerald-200 border border-emerald-400/30 flex items-center gap-1">
                     <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-                    4.9 • Chuẩn thi đấu
+                    4.9
                   </span>
                 </div>
 
@@ -771,24 +761,17 @@ export default function TrangChiTietSan({ user: propUser }) {
                   {coSoHienTai.tenDayDu}
                 </h1>
 
-                <div className="flex items-center gap-4 text-xs text-slate-200 mt-1.5 flex-wrap">
-                  <span className="flex items-center gap-1">
-                    <MapPin className="w-3.5 h-3.5 text-rose-400 shrink-0" />
-                    {coSoHienTai.diaChi}
-                  </span>
-                  <span className="flex items-center gap-1 font-bold text-white">
-                    <Phone className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                    Hotline: {coSoHienTai.hotline}
-                  </span>
-                </div>
+                <p className="flex items-center gap-1.5 text-xs text-slate-200 mt-1.5">
+                  <MapPin className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                  <span>{coSoHienTai.diaChi}</span>
+                </p>
               </div>
 
               {selectedCourt && (
-                <div className="px-4 py-2.5 rounded-2xl bg-white/12 backdrop-blur-md border border-white/20 text-right self-start md:self-end shrink-0">
-                  <span className="block text-[10px] text-slate-300 font-semibold">Đang xem loại sân</span>
-                  <span className="block text-xs font-black text-white max-w-[200px] truncate">{selectedCourt.name}</span>
-                  <span className="block text-sm font-black text-amber-300 mt-0.5">
-                    {Number(selectedCourt.price || 0).toLocaleString('vi-VN')} đ<span className="text-[10px] font-normal text-slate-300">/giờ cơ bản</span>
+                <div className="px-4 py-2 rounded-2xl bg-black/40 backdrop-blur-md border border-white/20 text-right self-start sm:self-end shrink-0">
+                  <span className="block text-base font-black text-amber-300 leading-tight">
+                    {Number(selectedCourt.price || 0).toLocaleString('vi-VN')} đ
+                    <span className="text-[11px] font-normal text-slate-200">/giờ</span>
                   </span>
                 </div>
               )}
