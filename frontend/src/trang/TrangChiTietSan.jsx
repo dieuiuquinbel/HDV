@@ -8,7 +8,7 @@
  * 4. Dịch vụ & tiện ích kèm theo theo đúng chuyên môn của từng bộ môn (Bóng đá, Cầu lông, Tennis, Bóng rổ).
  * 5. Bảng tính tiền realtime bên cạnh minh bạch, tự động cập nhật khi đổi loại sân hoặc chọn dịch vụ.
  */
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { 
   MapPin, 
@@ -25,6 +25,7 @@ import {
   Tag, 
   Flame, 
   Layers, 
+  ChevronLeft,
   ChevronRight, 
   Sparkles,
   Star
@@ -217,6 +218,7 @@ export default function TrangChiTietSan({ user: propUser }) {
 
   // State tiện ích kèm theo
   const [selectedAddons, setSelectedAddons] = useState({});
+  const scrollKhungGioRef = useRef(null);
   
   // State thời gian thuê
   const [selectedDate, setSelectedDate] = useState(() => layNgayTheoOffset(0));
@@ -1015,49 +1017,72 @@ export default function TrangChiTietSan({ user: propUser }) {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
-                    {DANH_SACH_KHUNG_GIO.map((slot) => {
-                      const laQuaKhu = kiemTraGioQuaKhu(selectedDate, slot.value);
-                      const prefix = slot.value.slice(0, 5);
-                      const kg = khungGioKhaDung.find(k => (k.slotStart || '').slice(0, 5) === prefix);
-                      const daDat = kg && !kg.available && kg.reason !== 'PAST';
-                      const khongKhaDung = laQuaKhu || daDat;
-                      const isSelected = startSlot === slot.value;
-                      const hourNum = Number(prefix.split(':')[0]);
-                      const isPeakHour = hourNum >= 17 && hourNum < 21;
+                  <div className="relative flex items-center gap-1.5 bg-slate-50/80 p-1.5 rounded-2xl border border-slate-200/80">
+                    <button
+                      type="button"
+                      onClick={() => scrollKhungGioRef.current?.scrollBy({ left: -240, behavior: 'smooth' })}
+                      aria-label="Cuộn khung giờ sang trái"
+                      className="w-8 h-9 rounded-xl bg-white hover:bg-slate-100 border border-slate-200/80 text-slate-600 flex items-center justify-center shrink-0 transition cursor-pointer shadow-2xs"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
 
-                      return (
-                        <button
-                          key={slot.value}
-                          type="button"
-                          disabled={khongKhaDung}
-                          onClick={() => setStartSlot(slot.value)}
-                          title={
-                            laQuaKhu
-                              ? 'Khung giờ này đã qua'
-                              : daDat
-                                ? 'Khung giờ này đã có người đặt'
-                                : isPeakHour
-                                  ? `${prefix} - Khung giờ vàng`
-                                  : `Chọn bắt đầu lúc ${prefix}`
-                          }
-                          className={`py-2 px-1.5 rounded-xl text-xs font-black transition relative flex items-center justify-center gap-0.5 ${
-                            khongKhaDung
-                              ? 'bg-slate-100 text-slate-300 line-through border border-slate-200/60 cursor-not-allowed'
-                              : isSelected
-                                ? 'bg-brand-600 text-white shadow-md shadow-brand-500/25 ring-2 ring-brand-500/25 scale-[1.03] cursor-pointer'
-                                : isPeakHour
-                                  ? 'bg-amber-50/80 hover:bg-amber-100 text-amber-900 border border-amber-200 cursor-pointer'
-                                  : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 cursor-pointer'
-                          }`}
-                        >
-                          <span>{prefix}</span>
-                          {isPeakHour && !khongKhaDung && (
-                            <span className="text-[10px] leading-none">🔥</span>
-                          )}
-                        </button>
-                      );
-                    })}
+                    <div
+                      ref={scrollKhungGioRef}
+                      className="flex-1 flex items-center gap-2 overflow-x-auto scroll-smooth py-0.5 px-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                    >
+                      {DANH_SACH_KHUNG_GIO.map((slot) => {
+                        const laQuaKhu = kiemTraGioQuaKhu(selectedDate, slot.value);
+                        const prefix = slot.value.slice(0, 5);
+                        const kg = khungGioKhaDung.find(k => (k.slotStart || '').slice(0, 5) === prefix);
+                        const daDat = kg && !kg.available && kg.reason !== 'PAST';
+                        const khongKhaDung = laQuaKhu || daDat;
+                        const isSelected = startSlot === slot.value;
+                        const hourNum = Number(prefix.split(':')[0]);
+                        const isPeakHour = hourNum >= 17 && hourNum < 21;
+
+                        return (
+                          <button
+                            key={slot.value}
+                            type="button"
+                            disabled={khongKhaDung}
+                            onClick={() => setStartSlot(slot.value)}
+                            title={
+                              laQuaKhu
+                                ? 'Khung giờ này đã qua'
+                                : daDat
+                                  ? 'Khung giờ này đã có người đặt'
+                                  : isPeakHour
+                                    ? `${prefix} - Khung giờ vàng (Cao điểm + Đèn LED)`
+                                    : `Chọn bắt đầu lúc ${prefix}`
+                            }
+                            className={`shrink-0 min-w-[78px] py-2 px-3 rounded-xl text-xs font-black transition flex items-center justify-center gap-1 ${
+                              khongKhaDung
+                                ? 'bg-slate-100 text-slate-300 line-through border border-slate-200/60 cursor-not-allowed'
+                                : isSelected
+                                  ? 'bg-brand-600 text-white shadow-md shadow-brand-500/25 ring-2 ring-brand-500/20 cursor-pointer'
+                                  : isPeakHour
+                                    ? 'bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 cursor-pointer'
+                                    : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 cursor-pointer'
+                            }`}
+                          >
+                            <span>{prefix}</span>
+                            {isPeakHour && !khongKhaDung && (
+                              <span className="text-[10px] leading-none">🔥</span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => scrollKhungGioRef.current?.scrollBy({ left: 240, behavior: 'smooth' })}
+                      aria-label="Cuộn khung giờ sang phải"
+                      className="w-8 h-9 rounded-xl bg-white hover:bg-slate-100 border border-slate-200/80 text-slate-600 flex items-center justify-center shrink-0 transition cursor-pointer shadow-2xs"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
 
