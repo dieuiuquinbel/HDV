@@ -8,6 +8,8 @@ package com.sportbooking.userservice.dieukhien;
 import com.sportbooking.userservice.dichvu.DichVuNguoiDung;
 import com.sportbooking.userservice.dulieu.TraVeNguoiDung;
 import com.sportbooking.userservice.dulieu.YeuCauDoiTrangThai;
+import com.sportbooking.userservice.dulieu.YeuCauTaoNguoiDungAdmin;
+import com.sportbooking.userservice.dulieu.YeuCauCapNhatNguoiDungAdmin;
 import com.sportbooking.userservice.ngoaile.LoiNghiepVu;
 import com.sportbooking.userservice.thucthe.TrangThaiNguoiDung;
 import com.sportbooking.userservice.thucthe.VaiTro;
@@ -66,5 +68,41 @@ public class DieuKhienNguoiDung {
         }
 
         return ResponseEntity.ok(dichVuNguoiDung.capNhatTrangThai(id, yeuCau.getStatus()));
+    }
+
+    @PostMapping
+    public ResponseEntity<TraVeNguoiDung> taoNguoiDungAdmin(
+            @Valid @RequestBody YeuCauTaoNguoiDungAdmin yeuCau,
+            @RequestHeader(value = "X-User-Role", required = false) String userRole) {
+
+        if (!"ADMIN".equals(userRole)) {
+            throw new LoiNghiepVu(HttpStatus.FORBIDDEN, "FORBIDDEN", "Chỉ quản trị viên mới có quyền tạo tài khoản");
+        }
+        return ResponseEntity.status(HttpStatus.CREATED).body(dichVuNguoiDung.taoNguoiDungAdmin(yeuCau));
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<TraVeNguoiDung> capNhatNguoiDungAdmin(
+            @PathVariable Long id,
+            @RequestBody YeuCauCapNhatNguoiDungAdmin yeuCau,
+            @RequestHeader(value = "X-User-Role", required = false) String userRole) {
+
+        if (!"ADMIN".equals(userRole)) {
+            throw new LoiNghiepVu(HttpStatus.FORBIDDEN, "FORBIDDEN", "Chỉ quản trị viên mới có quyền cập nhật tài khoản");
+        }
+        return ResponseEntity.ok(dichVuNguoiDung.capNhatNguoiDungAdmin(id, yeuCau));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> xoaNguoiDung(
+            @PathVariable Long id,
+            @RequestHeader(value = "X-User-Id", required = false) Long currentUserId,
+            @RequestHeader(value = "X-User-Role", required = false) String userRole) {
+
+        if (!"ADMIN".equals(userRole)) {
+            throw new LoiNghiepVu(HttpStatus.FORBIDDEN, "FORBIDDEN", "Chỉ quản trị viên mới có quyền xóa tài khoản");
+        }
+        dichVuNguoiDung.xoaNguoiDung(id, currentUserId);
+        return ResponseEntity.noContent().build();
     }
 }

@@ -27,9 +27,11 @@ import {
   CheckCheck,
   Clock,
   ArrowRight,
-  CreditCard
+  CreditCard,
+  Wallet
 } from 'lucide-react';
 import { apiDichVu } from '../dichvu/api';
+import ModalViDienTu from './ModalViDienTu';
 
 // Danh sach thong bao chuan thuong hieu ESportKing Ha Noi
 const THONG_BAO_MAU = [
@@ -87,11 +89,26 @@ export default function ThanhDieuHuong({ user, onDangXuat }) {
   const [tabThongBao, setTabThongBao] = useState('ALL');
   const [menuMoRong, setMenuMoRong] = useState(false);
   const [hienPopupThongBao, setHienPopupThongBao] = useState(false);
-  const [danhSachThongBao, setDanhSachThongBao] = useState(THONG_BAO_MAU);
+  const [danhSachThongBao, setDanhSachThongBao] = useState(user ? [] : THONG_BAO_MAU);
   const [hienDropdownAvatar, setHienDropdownAvatar] = useState(false);
+  const [hienModalVi, setHienModalVi] = useState(false);
+  const [soDuVi, setSoDuVi] = useState(0);
 
   const dropdownAvatarRef = useRef(null);
   const dropdownThongBaoRef = useRef(null);
+
+  // Tải thông tin số dư Ví SportPay
+  const taiSoDuVi = async () => {
+    if (!user) return;
+    try {
+      const res = await apiDichVu.layThongTinVi();
+      if (res.data?.balance !== undefined) {
+        setSoDuVi(Number(res.data.balance));
+      }
+    } catch (e) {
+      // Vi chua khoi tao hoac offline
+    }
+  };
 
   // Tải thông báo thực tế từ Notification Service
   const taiThongBao = async () => {
@@ -104,20 +121,53 @@ export default function ThanhDieuHuong({ user, onDangXuat }) {
 
       if (resList.status === 'fulfilled' && resList.value.data?.content) {
         const rawList = resList.value.data.content;
-        if (rawList.length > 0) {
-          const mapped = rawList.map(n => ({
+        const mapped = rawList.map(n => {
+          const loai = n.type || 'BOOKING';
+          let tag = 'Thông báo';
+          let badgeColor = 'bg-brand-500';
+          let icon = '📢';
+
+          if (loai === 'WITHDRAW_SUCCESS') {
+            tag = 'Rút tiền';
+            badgeColor = 'bg-indigo-500';
+            icon = '💸';
+          } else if (loai === 'WALLET_TOPUP') {
+            tag = 'Nạp ví';
+            badgeColor = 'bg-emerald-500';
+            icon = '💰';
+          } else if (loai === 'BOOKING_REFUNDED') {
+            tag = 'Hoàn tiền';
+            badgeColor = 'bg-amber-500';
+            icon = '🔄';
+          } else if (loai === 'PAYMENT_SUCCESS') {
+            tag = 'Thanh toán';
+            badgeColor = 'bg-emerald-500';
+            icon = '✅';
+          } else if (loai.startsWith('BOOKING')) {
+            tag = 'Đặt sân';
+            badgeColor = 'bg-blue-500';
+            icon = '🏟️';
+          } else if (loai === 'PROMO') {
+            tag = 'Khuyến mãi';
+            badgeColor = 'bg-rose-500';
+            icon = '🎁';
+          }
+
+          const daDoc = n.isRead !== undefined ? Boolean(n.isRead) : Boolean(n.read);
+
+          return {
             id: n.id,
-            type: n.type || 'BOOKING',
-            tag: n.type === 'PAYMENT_SUCCESS' || n.type === 'BOOKING_CREATED' ? 'Đơn đặt sân' : (n.type === 'PROMO' ? 'Khuyến mãi' : 'Thông báo'),
+            type: loai,
+            tag: tag,
             title: n.title,
             desc: n.message || n.content,
-            time: n.createdAt ? new Date(n.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' }) : 'Vừa xong',
-            unread: !n.read,
-            badgeColor: n.type === 'PAYMENT_SUCCESS' ? 'bg-emerald-500' : 'bg-brand-500',
-            icon: n.type === 'PAYMENT_SUCCESS' ? '✅' : '📢'
-          }));
-          setDanhSachThongBao(mapped);
-        }
+            time: n.createdAt ? new Date(n.createdAt).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' }) : 'Vừa xong',
+            unread: !daDoc,
+            badgeColor: badgeColor,
+            icon: icon
+          };
+        });
+        setDanhSachThongBao(mapped);
       }
 
       if (resCount.status === 'fulfilled' && resCount.value.data) {
@@ -125,7 +175,7 @@ export default function ThanhDieuHuong({ user, onDangXuat }) {
         setSoThongBaoChuaDoc(Number(c));
       }
     } catch (e) {
-      console.warn('Dùng danh sách thông báo mẫu do chưa kết nối được server thông báo:', e);
+      console.warn('Lỗi khi tải thông báo:', e);
     }
   };
 
@@ -145,17 +195,21 @@ export default function ThanhDieuHuong({ user, onDangXuat }) {
   useEffect(() => {
     taiThongBao();
     taiSoVeChuaQuet();
+    taiSoDuVi();
 
-    // Lắng nghe sự kiện cập nhật thông báo & vé khi thanh toán hoặc check-in thành công
+    // Lắng nghe sự kiện cập nhật thông báo & vé & ví
     const handleCapNhat = () => {
       taiThongBao();
       taiSoVeChuaQuet();
+      taiSoDuVi();
     };
     window.addEventListener('cap_nhat_thong_bao', handleCapNhat);
     window.addEventListener('cap_nhat_ve', handleCapNhat);
+    window.addEventListener('cap_nhat_so_du_vi', handleCapNhat);
     return () => {
       window.removeEventListener('cap_nhat_thong_bao', handleCapNhat);
       window.removeEventListener('cap_nhat_ve', handleCapNhat);
+      window.removeEventListener('cap_nhat_so_du_vi', handleCapNhat);
     };
   }, [user]);
 
@@ -172,8 +226,13 @@ export default function ThanhDieuHuong({ user, onDangXuat }) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const docTatCaThongBao = () => {
-    setDanhSachThongBao(danhSachThongBao.map(t => ({ ...t, unread: false })));
+  const docTatCaThongBao = async () => {
+    try {
+      await apiDichVu.danhDauTatCaDaDocThongBao();
+    } catch (err) {
+      console.warn('Loi khi danh dau doc tat ca:', err);
+    }
+    setDanhSachThongBao(prev => prev.map(t => ({ ...t, unread: false })));
     setSoThongBaoChuaDoc(0);
   };
 
@@ -181,15 +240,21 @@ export default function ThanhDieuHuong({ user, onDangXuat }) {
     if (item.unread) {
       try {
         await apiDichVu.danhDauDaDocThongBao(item.id);
-      } catch {}
-      setDanhSachThongBao(prev => prev.map(t => t.id === item.id ? { ...t, unread: false } : t));
-      setSoThongBaoChuaDoc(prev => Math.max(0, prev - 1));
+        setDanhSachThongBao(prev => prev.map(t => t.id === item.id ? { ...t, unread: false } : t));
+        setSoThongBaoChuaDoc(prev => Math.max(0, prev - 1));
+      } catch (err) {
+        console.warn('Loi khi doc thong bao:', err);
+      }
     }
   };
 
   const danhSachLoc = danhSachThongBao.filter(t => {
     if (tabThongBao === 'ALL') return true;
-    return t.type === tabThongBao;
+    if (tabThongBao === 'PROMO') return t.type === 'PROMO';
+    if (tabThongBao === 'BOOKING') {
+      return t.type.startsWith('BOOKING') || t.type.startsWith('PAYMENT') || t.type.startsWith('CHECKIN');
+    }
+    return true;
   });
 
   // TÁI CẤU TRÚC DANH SÁCH TAB THEO VAI TRÒ
@@ -255,6 +320,10 @@ export default function ThanhDieuHuong({ user, onDangXuat }) {
     return false;
   };
 
+  if (location.pathname === '/admin') {
+    return null;
+  }
+
   return (
     <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-100 shadow-sm transition-all duration-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -305,6 +374,23 @@ export default function ThanhDieuHuong({ user, onDangXuat }) {
           {/* Tien ich ben phai */}
           <div className="flex items-center gap-3">
             
+            {/* Vi Dien Tu SportPay */}
+            {user && (
+              <button
+                onClick={() => setHienModalVi(true)}
+                className="hidden sm:flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-amber-50 to-orange-50 hover:from-amber-100 hover:to-orange-100 border border-amber-200/80 text-amber-900 transition cursor-pointer shadow-sm group"
+                title="Ví SportPay - Bấm để Nạp/Rút tiền"
+              >
+                <div className="w-6 h-6 rounded-full bg-amber-500 text-white flex items-center justify-center text-xs group-hover:scale-105 transition-transform">
+                  <Wallet className="w-3.5 h-3.5" />
+                </div>
+                <div className="text-left">
+                  <span className="block text-[10px] text-amber-700/80 font-bold leading-none">Ví SportPay</span>
+                  <span className="text-xs font-black text-amber-900 leading-tight">{soDuVi.toLocaleString('vi-VN')} đ</span>
+                </div>
+              </button>
+            )}
+
             {/* Chuong Thong Bao */}
             <div className="relative" ref={dropdownThongBaoRef}>
               <button
@@ -486,6 +572,19 @@ export default function ThanhDieuHuong({ user, onDangXuat }) {
                           )}
                         </Link>
 
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setHienDropdownAvatar(false);
+                            setHienModalVi(true);
+                          }}
+                          className="w-full flex items-center gap-3 px-4 py-2.5 text-slate-700 hover:bg-slate-50 hover:text-brand-600 transition font-medium text-left cursor-pointer"
+                        >
+                          <Wallet className="w-4 h-4 text-amber-500" />
+                          <span>Ví SportPay & Rút tiền NH</span>
+                          <span className="ml-auto text-xs font-black text-amber-600">{soDuVi.toLocaleString('vi-VN')} đ</span>
+                        </button>
+
                         <Link
                           to="/me?tab=vouchers"
                           onClick={() => setHienDropdownAvatar(false)}
@@ -580,6 +679,14 @@ export default function ThanhDieuHuong({ user, onDangXuat }) {
           })}
         </div>
       )}
+
+      {/* Modal Vi Dien Tu SportPay */}
+      <ModalViDienTu 
+        hienThi={hienModalVi} 
+        onDong={() => setHienModalVi(false)} 
+        user={user} 
+        onSoDuThayDoi={setSoDuVi} 
+      />
     </header>
   );
 }

@@ -106,14 +106,14 @@ public class DichVuSanCon {
     }
 
     @Transactional
-    public TraVeSanCon capNhatSanCon(Long ownerId, Long id, YeuCauCapNhatSanCon yeuCau) {
+    public TraVeSanCon capNhatSanCon(Long ownerId, String userRole, Long id, YeuCauCapNhatSanCon yeuCau) {
         SanCon court = khoSanCon.findById(id)
                 .orElseThrow(() -> new LoiNghiepVu(HttpStatus.NOT_FOUND, "COURT_NOT_FOUND", "Không tìm thấy sân thi đấu con."));
 
         CumSan venue = khoCumSan.findById(court.getVenueId())
                 .orElseThrow(() -> new LoiNghiepVu(HttpStatus.NOT_FOUND, "VENUE_NOT_FOUND", "Không tìm thấy cụm sân thi đấu."));
 
-        if (!venue.getOwnerId().equals(ownerId)) {
+        if (!"ADMIN".equals(userRole) && !venue.getOwnerId().equals(ownerId)) {
             throw new LoiNghiepVu(HttpStatus.FORBIDDEN, "FORBIDDEN", "Bạn không phải chủ sở hữu sân này.");
         }
 
@@ -146,14 +146,14 @@ public class DichVuSanCon {
     }
 
     @Transactional
-    public TraVeSanCon doiTrangThaiSanCon(Long ownerId, Long id, String statusMoiStr) {
+    public TraVeSanCon doiTrangThaiSanCon(Long ownerId, String userRole, Long id, String statusMoiStr) {
         SanCon court = khoSanCon.findById(id)
                 .orElseThrow(() -> new LoiNghiepVu(HttpStatus.NOT_FOUND, "COURT_NOT_FOUND", "Không tìm thấy sân thi đấu con."));
 
         CumSan venue = khoCumSan.findById(court.getVenueId())
                 .orElseThrow(() -> new LoiNghiepVu(HttpStatus.NOT_FOUND, "VENUE_NOT_FOUND", "Không tìm thấy cụm sân thi đấu."));
 
-        if (!venue.getOwnerId().equals(ownerId)) {
+        if (!"ADMIN".equals(userRole) && !venue.getOwnerId().equals(ownerId)) {
             throw new LoiNghiepVu(HttpStatus.FORBIDDEN, "FORBIDDEN", "Bạn không phải chủ sở hữu sân này.");
         }
 

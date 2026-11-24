@@ -33,4 +33,8 @@ public class YeuCauDatSan {
     private Integer durationMinutes;
 
     private String voucherCode;
+
+    private java.math.BigDecimal addonAmount;
+
+    private String addonSummary;
 }

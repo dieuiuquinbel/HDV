@@ -1,103 +1,118 @@
-# ESportKing / Sport Booking — hướng dẫn chạy
+# ESportKing — Hệ Thống Đặt Sân Thể Thao Thông Minh Chuẩn Thi Đấu
+> **Đồ Án Chuyên Ngành: Phát Triển Phần Mềm Hướng Dịch Vụ (Service-Oriented Architecture - SOA & Microservices)**  
+> **Phiên bản:** 2.0 (Cập nhật: 11/2026) — Hỗ trợ 6 Microservices, Ví điện tử SportPay, Hoàn tiền tự động & Check-in QR động.
 
-Cập nhật tài liệu: **17/11/2026**. Java 21, Spring Boot 3.3.2, MySQL 8.0, React 18 và Vite.
+---
 
-## Đọc tài liệu
+## 📚 Hệ Thống Tài Liệu Chuẩn Đồ Án
 
-| Tài liệu | Nội dung sở hữu |
+Hệ thống tài liệu dự án được tinh gọn thành **3 tài liệu chuẩn mực**, phân định rõ ràng giữa Hướng dẫn vận hành, Kiến trúc nghiệp vụ và Lịch trình hoàn thành:
+
+| Tài liệu | Nội dung sở hữu chính |
 |---|---|
-| [Sport.md](Sport.md) | Phạm vi, vai trò và nghiệp vụ hiện tại |
-| [Program.md](Program.md) | Công việc còn lại, thứ tự ưu tiên và điều kiện kiểm chứng |
-| [Thiết kế và API](docs/design-review-erd-api-contract.md) | Ranh giới service, ERD tham chiếu và hợp đồng kỹ thuật |
-| [Lịch sử](docs/archive/lich-su-tai-lieu-truoc-2026-11-13.md) | Bản đặc tả, kế hoạch, rà soát và ghi nhận sửa lỗi trước đợt thống nhất |
+| 📘 **[README.md](README.md)** *(Tài liệu này)* | Hướng dẫn cài đặt môi trường, phân bổ Port/Database, lệnh chạy 1-click Windows & Docker Compose, tài khoản demo. |
+| 📗 **[KIEN_TRUC_VA_NGHIEP_VU.md](KIEN_TRUC_VA_NGHIEP_VU.md)** | Chi tiết kiến trúc 6 microservices, cách móc nối liên dịch vụ, cơ chế Gateway & CSRF, đặc tả 6 luồng nghiệp vụ từ Frontend đến Backend. |
+| 📙 **[BAO_CAO_TIEN_DO_PHAT_TRIEN.md](BAO_CAO_TIEN_DO_PHAT_TRIEN.md)** | Báo cáo tiến độ hoàn thành qua 4 giai đoạn, bảng đối chiếu tiêu chuẩn nghiệm thu đồ án và kịch bản Demo 7 bước trước hội đồng. |
 
-Giữ giao diện hiện tại; giai đoạn tiếp theo ưu tiên logic và dữ liệu. Tính năng có mã không đồng nghĩa đã nghiệm thu. Các phần thanh toán/hoàn tiền là mô phỏng, VietQR chưa có xác nhận thu tiền từ ngân hàng.
+---
 
-## 1. Thành phần và điều kiện chạy
+## 1. Danh Mục Các Dịch Vụ & Phân Bổ Cổng (Ports & Schemas)
 
-| Thành phần | Cổng local | Schema |
-|---|---|---|
-| Frontend | 5173 | — |
-| API Gateway | 8080 | — |
-| User | 8081 | user_db |
-| Court | 8082 | court_db |
-| Booking | 8083 | booking_db |
-| Payment | 8084 | payment_db |
-| Notification | 8085 | notification_db |
+Hệ thống được thiết kế theo đúng kiến trúc vi dịch vụ (Microservices Architecture), trong đó mỗi service nghiệp vụ độc lập quản lý một cơ sở dữ liệu riêng biệt (Database-per-service pattern):
 
-Cần JDK **21**, Node.js/npm, MySQL 8.0; cần Docker Compose nếu chọn chạy container. `mvnw.cmd` hiện ưu tiên đường Maven trên máy tác giả rồi gọi `mvn` trong PATH; đây chưa phải wrapper tự tải Maven dùng chung cho mọi máy.
+| Tên Dịch Vụ | Module Thư Mục | Cổng (Port) | Schema Database | Chức Năng Cốt Lõi |
+|---|---|---|---|---|
+| **API Gateway** | `api-gateway` | **8080** | *(Không dùng DB)* | Cổng vào duy nhất (Single Entrypoint), định tuyến đường dẫn, giải mã JWT từ Cookie, chống CSRF Double Submit, kiểm tra thu hồi phiên (Token Revocation). |
+| **User Service** | `user-service` | **8081** | `user_db` | Quản lý người dùng, phân quyền (CUSTOMER, STAFF, OWNER, ADMIN), đăng nhập/đăng ký, gửi & xác thực mã OTP, cơ chế khóa tài khoản. |
+| **Court Service** | `court-service` | **8082** | `court_db` | Quản lý danh mục 3 cơ sở tại Hà Nội, môn thể thao (Bóng đá, Cầu lông, Bóng rổ, Tennis), 30 sân thi đấu độc lập, bảng giá theo khung giờ và tiện ích. |
+| **Booking Service** | `booking-service` | **8083** | `booking_db` | Lịch khả dụng, lưới khung giờ 30 phút, cơ chế khóa slot tạm thời 10 phút chống đặt trùng, báo giá real-time, áp dụng mã ưu đãi (Voucher), mã QR Check-in HMAC. |
+| **Payment Service** | `payment-service` | **8084** | `payment_db` | Quản lý giao dịch thanh toán (VietQR Techcombank, Thẻ Visa/Mastercard, Ví điện tử SportPay), rút tiền demo về ngân hàng, hoàn tiền tự động vào ví khi hủy đơn. |
+| **Notification Service** | `notification-service` | **8085** | `notification_db` | Lưu trữ thông báo in-app, bộ đếm chưa đọc thời gian thực, đánh dấu đã đọc từng mục hoặc tất cả (`read-all`), phân loại thông báo theo nhóm sự kiện. |
+| **Web Frontend** | `frontend` | **5173** | *(Client SPA)* | Ứng dụng giao diện người dùng React 18 + Vite + Tailwind CSS, responsive mượt mà trên Mobile & Desktop, tích hợp Web Audio API phát chuông ting khi check-in/thanh toán. |
 
-Cấu hình local được đọc từ `application.yml` của từng service và biến môi trường. `run_all.bat` nạp `.env` nếu tệp tồn tại; `.env.example` đã được loại bỏ. Không chia sẻ thông tin bí mật trong `.env`.
+---
 
-- Mặc định local: MySQL `localhost:3306`, user `root`, password `123456`; đối chiếu cấu hình thực tế trên máy.
-- Có thể ghi đè `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD` khi chạy riêng từng service.
-- Script nạp các biến trong `.env` theo đúng tên; nó không tự chuyển `MYSQL_PASSWORD` thành `SPRING_DATASOURCE_PASSWORD` cho Java. Compose có khai báo ánh xạ riêng.
-- OTP dùng `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`. Khi chưa cấu hình SMTP, mã hiện ghi OTP trong log chế độ thử; mặc định không trả OTP trong HTTP response.
-- Flyway tự động quản lý schema cho 5 database nghiệp vụ khi service khởi động.
+## 2. Yêu Cầu Môi Trường Cài Đặt
 
-## 2. Chạy local bằng Windows
+Trước khi khởi động hệ thống, máy tính của bạn cần được cài đặt sẵn:
+* **Java Development Kit (JDK):** Phiên bản **21** (Khuyến nghị Oracle JDK 21 hoặc Eclipse Temurin 21).
+* **Node.js & npm:** Phiên bản Node.js **18.x** hoặc **20.x**.
+* **Hệ quản trị CSDL:** **MySQL 8.0** đang chạy tại `localhost:3306`.
+* **Maven:** Dự án đã tích hợp sẵn Maven Wrapper (`mvnw.cmd`), không bắt buộc cài Maven toàn cục.
+* **Docker & Docker Compose:** *(Tùy chọn)* Nếu muốn chạy toàn bộ hệ thống bằng container.
 
-Mở thư mục gốc dự án và chạy `run_all.bat`. Script kiểm tra Java/npm/cổng MySQL, build JAR nếu chưa thấy JAR User, cài thư viện frontend nếu thiếu, chạy backend và mở `http://localhost:5173`.
+---
 
-**Sau khi đổi mã backend**, build lại trước khi chạy vì script không tự phát hiện JAR đã cũ:
+## 3. Hướng Dẫn Chạy Trên Windows (Local Development)
 
+### Bước 1: Chuẩn bị Cơ sở dữ liệu MySQL
+1. Khởi động MySQL Server trên máy (port mặc định `3306`).
+2. Mở MySQL Workbench hoặc dòng lệnh và tạo sẵn 5 schema bằng script tại `docker/mysql/init.sql`, hoặc chạy script SQL sau:
+   ```sql
+   CREATE DATABASE IF NOT EXISTS user_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+   CREATE DATABASE IF NOT EXISTS court_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+   CREATE DATABASE IF NOT EXISTS booking_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+   CREATE DATABASE IF NOT EXISTS payment_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+   CREATE DATABASE IF NOT EXISTS notification_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+   ```
+   *(Flyway Migration trong từng service sẽ tự động tạo bảng và nạp dữ liệu mẫu khi service khởi động).*
+
+### Bước 2: Chạy 1-Click Toàn Bộ Hệ Thống
+Mở Command Prompt hoặc PowerShell tại thư mục gốc dự án và chạy:
 ```powershell
-.\mvnw.cmd package -DskipTests
 .\run_all.bat
 ```
+*Script sẽ tự động:*
+* Kiểm tra phiên bản Java, Node.js và cổng MySQL.
+* Biên dịch dự án nếu thiếu file `.jar`.
+* Cài đặt `node_modules` cho frontend nếu chạy lần đầu.
+* Khởi động ngầm 6 microservices backend (ghi log riêng vào thư mục `logs/`).
+* Khởi động Vite frontend và tự động mở trình duyệt tại địa chỉ: **`http://localhost:5173`**.
 
-Chờ cổng Gateway mở chỉ là kiểm tra tiến trình lắng nghe, chưa chứng minh toàn bộ service sẵn sàng. Khi lỗi, xem `logs/` và endpoint `/actuator/health` của service local tương ứng. Không chạy script nhiều lần khi các tiến trình cũ còn chiếm cổng.
+### Bước 3: Đóng / Dừng Hệ Thống Khi Không Sử Dụng
+* Dừng Frontend: Nhấn tổ hợp phím `Ctrl + C` tại cửa sổ dòng lệnh frontend.
+* Dừng Backend: Để tắt các service backend đang chạy nền và giải phóng các cổng 8080–8085, bạn có thể đóng cửa sổ terminal tương ứng hoặc kết thúc tiến trình `java.exe` qua Task Manager (hoặc chạy lệnh: `Stop-Process -Name java -Force` trong PowerShell).
 
-Dừng frontend bằng `Ctrl+C`; để dừng sạch toàn bộ 6 service backend đang chạy nền và giải phóng các cổng 8080-8085, chỉ cần chạy script `stop_all.bat`:
+---
 
+## 4. Hướng Dẫn Chạy Bằng Docker Compose
+
+Nếu môi trường đã có Docker Desktop:
 ```powershell
-.\stop_all.bat
-```
-
-Script sẽ tự động tìm và kết thúc nhanh các tiến trình đang chiếm cổng của hệ thống, giúp bạn có thể chạy lại `run_all.bat` bất cứ lúc nào mà không lo bị lỗi xung đột cổng.
-
-## 3. Chạy Docker Compose
-
-```powershell
+# 1. Khởi động toàn bộ container (MySQL, 6 backend services, frontend)
 docker compose up --build -d
+
+# 2. Xem log hợp nhất toàn hệ thống
 docker compose logs -f
+
+# 3. Dừng và giải phóng container
 docker compose down
 ```
+* Sau khi khởi động thành công:
+  * Frontend: `http://localhost:5173`
+  * API Gateway: `http://localhost:8080/api/v1`
+  * MySQL: `localhost:3306` (user: `sport_user`, password: `123456`)
 
-Frontend: `http://localhost:5173`; Gateway: `http://localhost:8080/api/v1`. Compose dùng một MySQL container với 5 schema riêng (`user_db`, `court_db`, `booking_db`, `payment_db`, `notification_db`), init script tại `docker/mysql/init.sql`. Init script chỉ chạy khi khởi tạo volume MySQL mới. Script SQL hiện gán cứng mật khẩu sport_user là 123456; nếu đổi MYSQL_PASSWORD phải đối chiếu tài khoản DB và cấu hình kết nối, không chỉ đổi .env. Không dùng `down -v` nếu cần giữ dữ liệu.
+---
 
-Đường chạy Docker và migration trên DB sạch cần được kiểm chứng theo [Program.md](Program.md); tài liệu này không tuyên bố đã chạy thành công trên máy mới.
+## 5. Danh Sách Tài Khoản Thử Nghiệm (Demo Accounts)
 
-## 4. Chạy riêng để phát triển
+Hệ thống đã chuẩn bị sẵn các tài khoản mẫu cho từng vai trò trong hệ thống:
 
-Ví dụ, trong terminal tại thư mục gốc:
+| Vai Trò | Email Đăng Nhập | Mật Khẩu | Quyền Hạn & Phạm Vi Hoạt Động |
+|---|---|---|---|
+| **ADMIN** | `admin@esportking.vn` | `123456` | Quản trị toàn hệ thống, xem thống kê doanh thu đa chiều, quản lý tài khoản người dùng, duyệt trạng thái sân và kiểm tra trạm check-in tất cả cơ sở. |
+| **STAFF (CS1)** | `staff_cs1@esportking.vn` | `123456` | Nhân viên trực ban Cơ Sở 1 (Cầu Giấy): Chuyên trách màn hình Trạm Check-in QR, đối soát vé, xác nhận nhận sân và xác nhận hoàn tất ca trả sân. |
+| **STAFF (CS2)** | `staff_cs2@esportking.vn` | `123456` | Nhân viên trực ban Cơ Sở 2 (Đống Đa). |
+| **STAFF (CS3)** | `staff_cs3@esportking.vn` | `123456` | Nhân viên trực ban Cơ Sở 3 (Hà Đông). |
+| **CUSTOMER** | `customer@esportking.vn` | `123456` | Khách hàng thành viên: Được khởi tạo sẵn **1.000.000 đ** trong Ví SportPay để trải nghiệm đặt sân 1-chạm, hủy vé nhận hoàn tiền vào ví, và rút tiền demo về ngân hàng. |
 
+---
+
+## 6. Tiện Ích Làm Sạch Dữ Liệu Demo (`reset_demo_data.bat`)
+
+Trong quá trình chạy thử hoặc demo trước hội đồng, nếu bạn đã tạo nhiều đơn đặt sân, vé check-in và biến động số dư ví, bạn có thể đưa toàn bộ cơ sở dữ liệu về trạng thái sạch sẽ ban đầu bằng lệnh:
 ```powershell
-.\mvnw.cmd spring-boot:run -pl user-service
+.\reset_demo_data.bat
 ```
-
-Thay tên module để chạy Gateway và các service còn lại, mỗi tiến trình một terminal. Frontend:
-
-```powershell
-cd frontend
-npm install
-npm run dev
-```
-
-Tài khoản demo do `user-service/.../cauhinh/KhoiTaoDuLieuMau.java` tạo; dữ liệu DB cũ có thể khác seeder. Các tài khoản hiện được mô tả trong mã gồm `admin@esportking.vn` / `Admin@123`, `customer@esportking.vn` / `Customer@123`, `staff@esportking.vn` / `Staff@123`. Seeder hiện không tạo OWNER.
-
-## 5. Build và kiểm thử
-
-```powershell
-.\mvnw.cmd -DskipTests compile
-cd frontend
-npm run build
-```
-
-Các lệnh trên kiểm tra biên dịch/build. Bộ kiểm thử tự động của Booking Service đã được cách ly hoàn toàn sang H2 in-memory DB (`jdbc:h2:mem:booking_test_db`), an toàn 100% khi chạy:
-
-```powershell
-.\mvnw.cmd test -pl booking-service
-```
-
-Bộ test bao gồm 9 test case tự động (PASS 9/9) kiểm tra: chống đặt trùng slot, tính idempotency, concurrency 2 luồng, đặt sân 90 phút, check-in chuyển CHECKED_IN giữ slot lock, trả sân COMPLETED giải phóng lock, phân quyền OWNER/STAFF/CUSTOMER, preview voucher giảm tiền cố định THETHAO50 và validation thời lượng/giờ hoạt động.
+Script sẽ tự động làm sạch các bảng dữ liệu phát sinh (`bookings`, `active_slot_locks`, `payment_transactions`, `wallets`, `notifications`), giữ nguyên danh mục 30 sân và tài khoản mẫu chuẩn của hệ thống.

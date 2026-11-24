@@ -41,8 +41,7 @@ public class KiemThuXacThuc {
         assertNotNull(user);
         assertEquals("CUSTOMER", user.getRole());
         assertEquals("PENDING_VERIFICATION", user.getStatus());
-        assertNotNull(user.getOtpCode());
-        assertEquals(6, user.getOtpCode().length());
+        assertNotNull(user.getMessage());
     }
 
     @Test
@@ -50,12 +49,12 @@ public class KiemThuXacThuc {
     void testDangNhapThanhCong() {
         MockHttpServletResponse res = new MockHttpServletResponse();
         YeuCauDangNhap req = new YeuCauDangNhap();
-        req.setEmail("customer1@sportbooking.com");
+        req.setEmail("customer@esportking.vn");
         req.setPassword("Customer@123");
 
         TraVeNguoiDung user = dichVuNguoiDung.dangNhap(req, res);
         assertNotNull(user);
-        assertEquals("customer1@sportbooking.com", user.getEmail());
+        assertEquals("customer@esportking.vn", user.getEmail());
 
         // Kiem tra da set cookie access_token HttpOnly
         assertNotNull(res.getCookie("access_token"));
@@ -68,7 +67,7 @@ public class KiemThuXacThuc {
     void testDangNhapSaiMatKhau() {
         MockHttpServletResponse res = new MockHttpServletResponse();
         YeuCauDangNhap req = new YeuCauDangNhap();
-        req.setEmail("customer1@sportbooking.com");
+        req.setEmail("customer@esportking.vn");
         req.setPassword("SaiMatKhauRoi");
 
         LoiNghiepVu ex = assertThrows(LoiNghiepVu.class, () -> {

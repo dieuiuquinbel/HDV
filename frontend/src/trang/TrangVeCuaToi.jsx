@@ -149,11 +149,14 @@ export default function TrangVeCuaToi({ user }) {
       const res = await apiDichVu.layDonDatCuaToi({ page: 0, size: 50 });
       const ds = res.data?.content || [];
       
-      // Kiem tra neu co ve vua duoc check-in (chuyen sang COMPLETED) thi phat chuong Ting
+      // Kiem tra neu co ve cu the nao vua duoc check-in (chuyen sang CHECKED_IN hoac COMPLETED) thi phat chuong Ting 1 lan duy nhat
       setDanhSachDon(prev => {
-        const truocDoCoConfirmed = prev.some(d => d.status === 'CONFIRMED');
-        const gioDayCoCompleted = ds.some(d => d.status === 'COMPLETED');
-        if (truocDoCoConfirmed && gioDayCoCompleted && prev.length > 0) {
+        const coVeVuaDoiTrangThai = prev.length > 0 && ds.some(moi => {
+          const cu = prev.find(p => p.id === moi.id);
+          return cu && cu.status === 'CONFIRMED' && (moi.status === 'CHECKED_IN' || moi.status === 'COMPLETED');
+        });
+
+        if (coVeVuaDoiTrangThai) {
           try {
             const AudioContextClass = window.AudioContext || window.webkitAudioContext;
             if (AudioContextClass) {
@@ -231,15 +234,70 @@ export default function TrangVeCuaToi({ user }) {
     };
   }, []);
 
-  // Xu ly huy don & hoan tien
-  const xuLyHuyDon = async (bookingId) => {
-    if (!window.confirm(`Bạn có chắc chắn muốn hủy vé #${bookingId}? Hệ thống sẽ tự động hoàn tiền 100% vào tài khoản của bạn.`)) return;
+  // Xu ly huy don & hoan tien theo chinh sach thoi gian (> 12h: 100%, < 12h: 80%)
+  const xuLyHuyDon = async (don) => {
+    if (!don) return;
+    const bookingId = don.id;
+    
+    // Tinh gio thi dau de thong bao ti le hoan tien minh bach
+    let tiLe = '100%';
+    let soTienHoan = don.totalAmount || 0;
+    let moTa = 'Hoàn 100% về Ví ESportKing';
+
+    if (don.bookingDate && don.startSlot) {
+      try {
+        const [gio, phut] = don.startSlot.split(':').map(Number);
+        const [nam, thang, ngay] = don.bookingDate.split('-').map(Number);
+        const gioBatDau = new Date(nam, thang - 1, ngay, gio, phut);
+        const now = new Date();
+        const diffHours = (gioBatDau - now) / (1000 * 60 * 60);
+
+        if (diffHours <= 0) {
+          alert('Giờ thi đấu đã bắt đầu, hệ thống không thể thực hiện hủy vé.');
+          return;
+        }
+
+        // Quy chuẩn thực tế (Time-window Policy):
+        // >= 24 giờ: Hoàn 100%
+        // 12 đến 24 giờ: Hoàn 50%
+        // Dưới 12 giờ: Hoàn 0%
+        if (diffHours >= 24) {
+          tiLe = '100%';
+          soTienHoan = don.totalAmount;
+          moTa = `Trước >= 24 giờ: Hoàn 100% (${soTienHoan.toLocaleString('vi-VN')} đ) vào Ví ESportKing`;
+        } else if (diffHours >= 12) {
+          tiLe = '50%';
+          soTienHoan = Math.round(don.totalAmount * 0.5);
+          moTa = `Từ 12 đến 24 giờ: Hoàn 50% (${soTienHoan.toLocaleString('vi-VN')} đ) vào Ví ESportKing (chia sẻ rủi ro giữa khách và chủ sân)`;
+        } else {
+          tiLe = '0%';
+          soTienHoan = 0;
+          moTa = `Dưới 12 giờ hoặc đã qua giờ bắt đầu (No-show): Hoàn 0% (không hỗ trợ hoàn tiền khi hủy sát giờ)`;
+        }
+      } catch (e) {}
+    }
+
+    const xacNhan = window.confirm(
+      `XÁC NHẬN HỦY VÉ #${bookingId}\n` +
+      `--------------------------------------\n` +
+      `Chính sách hoàn tiền: ${moTa}\n\n` +
+      `Bạn có chắc chắn muốn hủy đơn đặt sân này không?`
+    );
+
+    if (!xacNhan) return;
+
     try {
-      await apiDichVu.huyDonDat(bookingId);
-      alert('Đã hủy vé thành công! Tiền đang được chuyển hoàn.');
+      const res = await apiDichVu.huyDonDat(bookingId);
+      const donMoi = res.data;
+      if (donMoi?.status === 'CANCELLED_REFUNDED') {
+        alert(`Hủy vé #${bookingId} thành công! Số tiền ${soTienHoan.toLocaleString('vi-VN')} đ (${tiLe}) đã được chuyển thẳng vào Ví ESportKing.`);
+      } else {
+        alert(`Hủy vé #${bookingId} thành công! Trạng thái đơn: ${donMoi?.status || 'Đã hủy'}.`);
+      }
       taiDanhSachVe();
-      // Phat su kien cap nhat badge
       window.dispatchEvent(new Event('cap_nhat_ve'));
+      window.dispatchEvent(new Event('cap_nhat_so_du_vi'));
+      window.dispatchEvent(new Event('cap_nhat_thong_bao'));
     } catch (err) {
       alert(err.response?.data?.message || 'Không thể hủy vé');
     }
@@ -437,6 +495,7 @@ export default function TrangVeCuaToi({ user }) {
               const laDaHoanTat = don.status === 'COMPLETED';
               const laChoThanhToan = don.status === 'PENDING_PAYMENT';
               const laDaHuy = don.status === 'CANCELLED' || don.status === 'CANCELLED_REFUNDED';
+              const laDaNhanSan = laDangSuDung || laDaHoanTat;
               const qrUrl = banDoQr[don.id];
 
               return (
@@ -596,12 +655,12 @@ export default function TrangVeCuaToi({ user }) {
                           {/* Bước 4: Trả sân & Hoàn tất */}
                           <div className="flex flex-col items-center relative z-10">
                             <div className={`w-6 h-6 rounded-full flex items-center justify-center mb-1 text-[11px] font-bold shadow-sm ${
-                              laDaNhanSan ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-500'
+                              laDaHoanTat ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-500'
                             }`}>
-                              {laDaNhanSan ? <Check className="w-3.5 h-3.5" /> : '4'}
+                              {laDaHoanTat ? <Check className="w-3.5 h-3.5" /> : '4'}
                             </div>
                             <span className={`text-[10px] font-bold ${
-                              laDaNhanSan ? 'text-emerald-700' : 'text-slate-400'
+                              laDaHoanTat ? 'text-emerald-700' : 'text-slate-400'
                             }`}>
                               4. Hoàn Tất Ca
                             </span>
@@ -676,7 +735,7 @@ export default function TrangVeCuaToi({ user }) {
                           )}
                           {laChuaQuet && (
                             <button
-                              onClick={() => xuLyHuyDon(don.id)}
+                              onClick={() => xuLyHuyDon(don)}
                               className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl text-xs font-bold transition border border-rose-200"
                             >
                               Hủy & Hoàn tiền

@@ -23,6 +23,8 @@ public class TraVeBaoGiaDatSan {
     private BigDecimal totalCourtPrice;
     private String voucherCode;
     private BigDecimal discountAmount;
+    private BigDecimal addonAmount;
+    private String addonSummary;
     private BigDecimal finalAmount;
     private String currency;
     private LocalTime openTime;

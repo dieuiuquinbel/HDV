@@ -55,6 +55,9 @@ export const apiDichVu = {
   layThongTinToi: () => api.get('/users/me'),
   layDanhSachNguoiDung: (params) => api.get('/users', { params }),
   capNhatTrangThaiUser: (id, status) => api.patch(`/users/${id}/status`, { status }),
+  taoNguoiDungAdmin: (data) => api.post('/users', data),
+  capNhatNguoiDungAdmin: (id, data) => api.put(`/users/${id}`, data),
+  xoaNguoiDungAdmin: (id) => api.delete(`/users/${id}`),
 
   // 2. Cum san & San con
   layDanhSachCumSan: (params) => api.get('/venues', { params }),
@@ -98,10 +101,17 @@ export const apiDichVu = {
   layThanhToanAdmin: (params) => api.get('/admin/payments', { params }),
   layThongKeDoanhThu: (params) => api.get('/admin/statistics/revenue', { params }),
 
+  // 4.1. Vi dien tu SportPay
+  layThongTinVi: () => api.get('/payments/wallet'),
+  rutTienVi: (data) => api.post('/payments/wallet/withdraw', data),
+  napTienVi: (data) => api.post('/payments/wallet/topup', data),
+  thanhToanBangVi: (bookingId) => api.post('/payments/wallet/pay', { bookingId }),
+
   // 5. Thong bao (Notification Service)
   layThongBaoCuaToi: (params) => api.get('/notifications/me', { params }),
   demThongBaoChuaDoc: () => api.get('/notifications/me/unread-count'),
   danhDauDaDocThongBao: (id) => api.patch(`/notifications/${id}/read`),
+  danhDauTatCaDaDocThongBao: () => api.patch('/notifications/read-all'),
 };
 
 export default api;

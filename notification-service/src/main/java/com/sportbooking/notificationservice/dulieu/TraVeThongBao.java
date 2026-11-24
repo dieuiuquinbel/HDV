@@ -5,6 +5,7 @@
  */
 package com.sportbooking.notificationservice.dulieu;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.sportbooking.notificationservice.thucthe.ThongBao;
 import lombok.Builder;
 import lombok.Data;
@@ -19,7 +20,15 @@ public class TraVeThongBao {
     private String title;
     private String message;
     private String type;
+
+    @JsonProperty("isRead")
     private Boolean isRead;
+
+    @JsonProperty("read")
+    public Boolean getRead() {
+        return this.isRead;
+    }
+
     private Instant createdAt;
 
     public static TraVeThongBao tuThucThe(ThongBao t) {

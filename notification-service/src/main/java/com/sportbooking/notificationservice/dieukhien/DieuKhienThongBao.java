@@ -54,6 +54,18 @@ public class DieuKhienThongBao {
         return ResponseEntity.ok().build();
     }
 
+    @PatchMapping("/read-all")
+    public ResponseEntity<Map<String, Object>> danhDauTatCaDaDoc(
+            @RequestHeader(value = "X-User-Id", required = false) Long userId) {
+
+        if (userId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        int soLuong = dichVuThongBao.danhDauTatCaDaDoc(userId);
+        return ResponseEntity.ok(Map.of("success", true, "markedCount", (long) soLuong));
+    }
+
     @GetMapping({"/unread-count", "/me/unread-count"})
     public ResponseEntity<Map<String, Long>> demChuaDoc(
             @RequestHeader(value = "X-User-Id", required = false) Long userId) {

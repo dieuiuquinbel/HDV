@@ -10,6 +10,8 @@ import com.sportbooking.userservice.dulieu.TraVeNguoiDung;
 import com.sportbooking.userservice.dulieu.YeuCauDangKy;
 import com.sportbooking.userservice.dulieu.YeuCauDangNhap;
 import com.sportbooking.userservice.dulieu.YeuCauXacMinhOtp;
+import com.sportbooking.userservice.dulieu.YeuCauTaoNguoiDungAdmin;
+import com.sportbooking.userservice.dulieu.YeuCauCapNhatNguoiDungAdmin;
 import com.sportbooking.userservice.ngoaile.LoiNghiepVu;
 import com.sportbooking.userservice.khodulieu.KhoNguoiDung;
 import com.sportbooking.userservice.khodulieu.KhoMaOtp;
@@ -293,6 +295,70 @@ public class DichVuNguoiDung {
         user = khoNguoiDung.save(user);
 
         return TraVeNguoiDung.tuThucThe(user);
+    }
+
+    @Transactional
+    public TraVeNguoiDung taoNguoiDungAdmin(YeuCauTaoNguoiDungAdmin yeuCau) {
+        if (khoNguoiDung.existsByEmail(yeuCau.getEmail().trim().toLowerCase())) {
+            throw new LoiNghiepVu(HttpStatus.CONFLICT, "EMAIL_ALREADY_EXISTS", "Email này đã được sử dụng trên hệ thống.");
+        }
+        String passwordRaw = (yeuCau.getPassword() != null && !yeuCau.getPassword().isBlank()) 
+                ? yeuCau.getPassword().trim() 
+                : "123456";
+
+        NguoiDung user = NguoiDung.builder()
+                .email(yeuCau.getEmail().trim().toLowerCase())
+                .passwordHash(passwordEncoder.encode(passwordRaw))
+                .fullName(yeuCau.getFullName().trim())
+                .phone(yeuCau.getPhone() != null ? yeuCau.getPhone().trim() : null)
+                .role(yeuCau.getRole() != null ? yeuCau.getRole() : VaiTro.CUSTOMER)
+                .status(TrangThaiNguoiDung.ACTIVE)
+                .tokenVersion(0)
+                .build();
+
+        user = khoNguoiDung.save(user);
+        return TraVeNguoiDung.tuThucThe(user);
+    }
+
+    @Transactional
+    public TraVeNguoiDung capNhatNguoiDungAdmin(Long id, YeuCauCapNhatNguoiDungAdmin yeuCau) {
+        NguoiDung user = khoNguoiDung.findById(id)
+                .orElseThrow(() -> new LoiNghiepVu(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "Không tìm thấy thông tin người dùng."));
+
+        if (yeuCau.getFullName() != null && !yeuCau.getFullName().isBlank()) {
+            user.setFullName(yeuCau.getFullName().trim());
+        }
+        if (yeuCau.getPhone() != null) {
+            user.setPhone(yeuCau.getPhone().trim());
+        }
+        if (yeuCau.getRole() != null) {
+            user.setRole(yeuCau.getRole());
+            user.setTokenVersion(user.getTokenVersion() + 1); // Thay doi quyen thi lam moi phien
+        }
+        user = khoNguoiDung.save(user);
+        return TraVeNguoiDung.tuThucThe(user);
+    }
+
+    @Transactional
+    public void xoaNguoiDung(Long id, Long currentAdminId) {
+        if (id.equals(currentAdminId)) {
+            throw new LoiNghiepVu(HttpStatus.BAD_REQUEST, "CANNOT_DELETE_SELF", "Bạn không thể xóa tài khoản của chính mình.");
+        }
+        NguoiDung user = khoNguoiDung.findById(id)
+                .orElseThrow(() -> new LoiNghiepVu(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "Không tìm thấy thông tin người dùng."));
+
+        java.util.List<String> coreEmails = java.util.List.of(
+                "admin@esportking.vn",
+                "staff_cs1@esportking.vn",
+                "staff_cs2@esportking.vn",
+                "staff_cs3@esportking.vn",
+                "customer@esportking.vn"
+        );
+        if (coreEmails.contains(user.getEmail().toLowerCase())) {
+            throw new LoiNghiepVu(HttpStatus.BAD_REQUEST, "CORE_ACCOUNT_PROTECTED", "Đây là tài khoản chuẩn của hệ thống, không được phép xóa. Bạn có thể sử dụng chức năng Khóa tài khoản.");
+        }
+
+        khoNguoiDung.delete(user);
     }
 
     @Transactional(readOnly = true)

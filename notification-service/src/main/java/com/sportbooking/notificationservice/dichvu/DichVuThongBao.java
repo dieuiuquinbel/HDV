@@ -68,4 +68,9 @@ public class DichVuThongBao {
     public long demChuaDoc(Long userId) {
         return khoThongBao.countByUserIdAndIsReadFalse(userId);
     }
+
+    @Transactional
+    public int danhDauTatCaDaDoc(Long userId) {
+        return khoThongBao.markAllAsReadByUserId(userId);
+    }
 }

@@ -169,6 +169,26 @@ const DANH_SACH_VOUCHERS = [
     expire: 'HSD: 15-11-2026',
     tag: 'TRI ÂN',
     badgeBg: 'bg-pink-500 text-white'
+  },
+  {
+    code: 'THETHAO50',
+    title: 'Đam Mê Thể Thao',
+    discount: 'Giảm 50.000đ',
+    maxText: 'Đơn từ 200.000đ',
+    desc: 'Ưu đãi đặc biệt giảm ngay 50k cho các trận đấu thể thao sôi động',
+    expire: 'HSD: 31-12-2026',
+    tag: 'TIẾT KIỆM',
+    badgeBg: 'bg-indigo-500 text-white'
+  },
+  {
+    code: 'CUOITUAN',
+    title: 'Sôi Động Cuối Tuần',
+    discount: 'Giảm 15%',
+    maxText: 'Tối đa 80.000đ',
+    desc: 'Giảm 15% tối đa 80k cho các trận giao lưu Thứ 7 và Chủ Nhật',
+    expire: 'HSD: Cuối tuần',
+    tag: 'CUỐI TUẦN',
+    badgeBg: 'bg-emerald-600 text-white'
   }
 ];
 

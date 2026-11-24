@@ -38,6 +38,18 @@ const MUC_THANH_BEN = [
   { id: 'refunds', label: 'Hoàn tiền' },
 ];
 
+// Danh sach voucher mac dinh he thong ESportKing
+const DANH_SACH_VOUCHERS_CHUAN = [
+  { code: 'CHAOBANMOI', description: 'Giảm 20% cho thành viên mới trong lần đặt sân đầu tiên', discountPercent: 20, maxDiscount: 50000, minOrderAmount: 100000, tag: 'HOT NHẤT', badgeBg: 'bg-rose-500 text-white' },
+  { code: 'THELUC2026', description: 'Giảm 15% tối đa 40k cho ngày thường (Thứ 2 - Thứ 5)', discountPercent: 15, maxDiscount: 40000, minOrderAmount: 100000, tag: 'NGÀY THƯỜNG', badgeBg: 'bg-amber-500 text-white' },
+  { code: 'CUOITUAN', description: 'Giảm 15% tối đa 80k cho đơn cuối tuần từ 150k', discountPercent: 15, maxDiscount: 80000, minOrderAmount: 150000, tag: 'CUỐI TUẦN', badgeBg: 'bg-emerald-500 text-white' },
+  { code: 'CUOITUANXU', description: 'Giảm ngay 25k cho đơn cuối tuần từ 150k', discountPercent: 0, discountAmount: 25000, minOrderAmount: 150000, tag: 'CUỐI TUẦN', badgeBg: 'bg-emerald-500 text-white' },
+  { code: 'VIPSPORT', description: 'Giảm ngay 30k cho khách hàng thân thiết đơn từ 200k', discountPercent: 0, discountAmount: 30000, minOrderAmount: 200000, tag: 'ĐƠN LỚN', badgeBg: 'bg-purple-500 text-white' },
+  { code: 'PICKLE50', description: 'Giảm 10% tối đa 35k cho sân thể thao', discountPercent: 10, maxDiscount: 35000, minOrderAmount: 100000, tag: 'HOT TREND', badgeBg: 'bg-blue-500 text-white' },
+  { code: 'TRIAN2026', description: 'Giảm ngay 20k tri ân khách hàng rèn luyện sức khỏe', discountPercent: 0, discountAmount: 20000, minOrderAmount: 100000, tag: 'TRI ÂN', badgeBg: 'bg-pink-500 text-white' },
+  { code: 'THETHAO50', description: 'Giảm ngay 50k cho đơn từ 200k', discountPercent: 0, discountAmount: 50000, minOrderAmount: 200000, tag: 'TIẾT KIỆM', badgeBg: 'bg-indigo-500 text-white' }
+];
+
 export default function TrangHoSoCaNhan({ user, onDangXuat }) {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -49,9 +61,17 @@ export default function TrangHoSoCaNhan({ user, onDangXuat }) {
   const [phone, setPhone] = useState(user?.phone || '');
   const [daLuu, setDaLuu] = useState(false);
 
-  // Du lieu don dat san
+  // Du lieu don dat san & vouchers
   const [danhSachDon, setDanhSachDon] = useState([]);
   const [danhSachVoucher, setDanhSachVoucher] = useState([]);
+  const [savedVouchers, setSavedVouchers] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('sportbooking_saved_vouchers') || '["CHAOBANMOI"]');
+    } catch {
+      return ['CHAOBANMOI'];
+    }
+  });
+  const [boLocVoucher, setBoLocVoucher] = useState('ALL'); // 'ALL' hoac 'SAVED'
   const [sanYeuThichList, setSanYeuThichList] = useState([]);
   const [dangTai, setDangTai] = useState(false);
 
@@ -76,10 +96,21 @@ export default function TrangHoSoCaNhan({ user, onDangXuat }) {
         .then(res => setDanhSachDon(res.data?.content || []))
         .catch(console.error);
 
-      // Lay danh sach voucher kha dung
+      // Lay danh sach voucher kha dung va dong bo voi he thong
       apiDichVu.layDanhSachUuDai()
-        .then(res => setDanhSachVoucher(res.data || []))
-        .catch(console.error);
+        .then(res => {
+          const apiList = Array.isArray(res.data) ? res.data : [];
+          const map = new Map();
+          DANH_SACH_VOUCHERS_CHUAN.forEach(v => map.set(v.code, { ...v }));
+          apiList.forEach(v => {
+            const cur = map.get(v.code) || {};
+            map.set(v.code, { ...cur, ...v });
+          });
+          setDanhSachVoucher(Array.from(map.values()));
+        })
+        .catch(() => {
+          setDanhSachVoucher(DANH_SACH_VOUCHERS_CHUAN);
+        });
     }
   }, [user]);
 
@@ -330,36 +361,81 @@ export default function TrangHoSoCaNhan({ user, onDangXuat }) {
             {/* TAB 2: KHO VOUCHER */}
             {tabHienTai === 'wallet' && (
               <div className="bg-white rounded-[26px] p-6 sm:p-8 border border-slate-200/80 shadow-sm text-left">
-                <div className="mb-6">
-                  <h3 className="text-lg font-black text-slate-900">Kho Voucher Của Bạn</h3>
-                  <p className="text-xs text-slate-400 font-semibold">Sử dụng các mã giảm giá dưới đây khi thanh toán đặt sân.</p>
+                <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <h3 className="text-lg font-black text-slate-900">Kho Voucher Của Bạn</h3>
+                    <p className="text-xs text-slate-400 font-semibold">Sử dụng các mã giảm giá dưới đây khi thanh toán đặt sân.</p>
+                  </div>
+                  {/* Filter tabs: Tat ca / Da luu */}
+                  <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-xl self-start sm:self-auto">
+                    <button
+                      onClick={() => setBoLocVoucher('ALL')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${boLocVoucher === 'ALL' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                    >
+                      Tất cả ({danhSachVoucher.length})
+                    </button>
+                    <button
+                      onClick={() => setBoLocVoucher('SAVED')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${boLocVoucher === 'SAVED' ? 'bg-white text-brand-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                    >
+                      <span>Mã đã lưu</span>
+                      <span className="px-1.5 py-0.2 bg-brand-100 text-brand-700 text-[10px] font-black rounded-full">
+                        {danhSachVoucher.filter(v => savedVouchers.includes(v.code)).length}
+                      </span>
+                    </button>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {danhSachVoucher.map((v) => (
-                    <div key={v.code} className="p-5 border-2 border-dashed border-brand-200 rounded-2xl bg-gradient-to-tr from-rose-50/50 to-white flex flex-col justify-between">
-                      <div>
-                        <div className="flex items-center justify-between">
-                          <span className="px-3 py-1 bg-brand-600 text-white text-xs font-black rounded-lg tracking-wider">
-                            {v.code}
-                          </span>
-                          <span className="text-xs font-black text-rose-600">
-                            Giảm {v.discountPercent}%
-                          </span>
-                        </div>
-                        <p className="text-xs font-bold text-slate-800 mt-3">{v.description}</p>
-                        <p className="text-[11px] text-slate-400 font-semibold mt-1">Đơn tối thiểu: 100.000đ</p>
-                      </div>
+                  {danhSachVoucher
+                    .filter(v => boLocVoucher === 'ALL' || savedVouchers.includes(v.code))
+                    .map((v) => {
+                      const daLuuVoucher = savedVouchers.includes(v.code);
+                      const isPercent = v.discountPercent && Number(v.discountPercent) > 0;
+                      const textGiam = isPercent
+                        ? `Giảm ${v.discountPercent}%${v.maxDiscount ? ` (Tối đa ${Number(v.maxDiscount).toLocaleString('vi-VN')}đ)` : ''}`
+                        : `Giảm ${Number(v.discountAmount || 0).toLocaleString('vi-VN')}đ`;
 
-                      <button
-                        onClick={() => copyMaVoucher(v.code)}
-                        className="mt-4 w-full py-2 bg-white hover:bg-brand-50 border border-brand-300 text-brand-600 text-xs font-bold rounded-xl transition flex items-center justify-center gap-1.5"
-                      >
-                        <Copy className="w-3.5 h-3.5" />
-                        Sao chép mã
-                      </button>
-                    </div>
-                  ))}
+                      return (
+                        <div key={v.code} className="p-5 border-2 border-dashed border-brand-200 rounded-2xl bg-gradient-to-tr from-rose-50/50 to-white flex flex-col justify-between relative overflow-hidden">
+                          {daLuuVoucher && (
+                            <div className="absolute top-0 right-0 bg-emerald-500 text-white text-[10px] font-black px-3 py-0.5 rounded-bl-xl shadow-xs">
+                              ✓ ĐÃ LƯU TRONG VÍ
+                            </div>
+                          )}
+                          <div>
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="px-3 py-1 bg-brand-600 text-white text-xs font-black rounded-lg tracking-wider">
+                                {v.code}
+                              </span>
+                              <span className="text-xs font-black text-rose-600">
+                                {textGiam}
+                              </span>
+                            </div>
+                            <p className="text-xs font-bold text-slate-800 mt-3">{v.description}</p>
+                            <p className="text-[11px] text-slate-400 font-semibold mt-1">
+                              Đơn tối thiểu: {Number(v.minOrderAmount || 100000).toLocaleString('vi-VN')}đ
+                            </p>
+                          </div>
+
+                          <div className="mt-4 flex gap-2">
+                            <button
+                              onClick={() => copyMaVoucher(v.code)}
+                              className="flex-1 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold rounded-xl transition flex items-center justify-center gap-1.5"
+                            >
+                              <Copy className="w-3.5 h-3.5 text-slate-500" />
+                              Sao chép
+                            </button>
+                            <button
+                              onClick={() => navigate(`/tim-san?voucher=${v.code}`)}
+                              className="flex-1 py-2 bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold rounded-xl transition flex items-center justify-center gap-1.5 shadow-sm"
+                            >
+                              Dùng ngay
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
                 </div>
               </div>
             )}

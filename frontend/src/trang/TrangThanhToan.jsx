@@ -25,7 +25,8 @@ import {
   MapPin,
   Smartphone,
   Search,
-  Ticket
+  Ticket,
+  Wallet
 } from 'lucide-react';
 
 // Hàm phát âm thanh chuông "Ting! 🔔" bằng Web Audio API nguyên bản (Apple Pay / MoMo style)
@@ -77,7 +78,8 @@ export default function TrangThanhToan({ user, nguoiDung }) {
   const [processing, setProcessing] = useState(false);
   const [msg, setMsg] = useState(null);
   const [timeLeft, setTimeLeft] = useState('');
-  const [phuongThuc, setPhuongThuc] = useState('vietqr'); // 'vietqr' | 'card'
+  const [phuongThuc, setPhuongThuc] = useState('vietqr'); // 'vietqr' | 'wallet' | 'card'
+  const [soDuVi, setSoDuVi] = useState(0);
   const [qrDataUrl, setQrDataUrl] = useState('');
   const [vietQrInfo, setVietQrInfo] = useState(null);
   const [demNguocChuyenTrang, setDemNguocChuyenTrang] = useState(null);
@@ -235,18 +237,16 @@ export default function TrangThanhToan({ user, nguoiDung }) {
             setQrDataUrl(`https://img.vietqr.io/image/TCB-${stk}-compact2.png?amount=${amt}&addInfo=${encodeURIComponent(memo)}&accountName=Nguyen%20Xuan%20Dieu`);
           }
         } else {
-          // Fallback giả lập payment nếu backend chưa tạo được
-          setPayment({
-            id: 999999,
-            transactionCode: 'TX-' + curBookingId,
-            status: 'PENDING',
-            amount: resB.data.totalAmount
-          });
-          const stk = '72271020058888';
-          const amt = resB.data.totalAmount;
-          const memo = `BOOKING_${curBookingId}`;
-          setQrDataUrl(`https://img.vietqr.io/image/TCB-${stk}-compact2.png?amount=${amt}&addInfo=${encodeURIComponent(memo)}&accountName=Nguyen%20Xuan%20Dieu`);
+          setMsg('Chưa thể kết nối tới cổng thanh toán để tạo phiên giao dịch thật. Vui lòng bấm thử lại.');
         }
+
+        // Tai so du Vi ESportKing de hien thi lua chon thanh toan bang vi
+        try {
+          const resVi = await apiDichVu.layThongTinVi();
+          if (resVi.data?.balance !== undefined) {
+            setSoDuVi(Number(resVi.data.balance));
+          }
+        } catch (e) {}
       } else {
         // 2. Fallback an toàn khi bookingId là mã chuỗi giả lập (ví dụ BK-579536)
         let savedBooking = null;
@@ -385,10 +385,36 @@ export default function TrangThanhToan({ user, nguoiDung }) {
       }
       const res = await apiDichVu.moPhongThanhCong(payment.id);
       setPayment(res.data);
-      const resB = await apiDichVu.layChiTietDonDat(bookingId);
+      const targetId = booking?.id || bookingId;
+      const resB = await apiDichVu.layChiTietDonDat(targetId);
       setBooking(resB.data);
+      phatAmThanhTing();
+      window.dispatchEvent(new Event('cap_nhat_ve'));
+      window.dispatchEvent(new Event('cap_nhat_so_du_vi'));
+      window.dispatchEvent(new Event('cap_nhat_thong_bao'));
     } catch (e) {
       setMsg(e.response?.data?.message || 'Có lỗi xảy ra khi xác nhận thanh toán.');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  // Thanh toan truc tiep bang So du Vi ESportKing (SportPay)
+  const handleThanhToanBangVi = async () => {
+    if (!booking) return;
+    setProcessing(true);
+    setMsg(null);
+    try {
+      const res = await apiDichVu.thanhToanBangVi(booking.id);
+      setPayment(res.data);
+      const resB = await apiDichVu.layChiTietDonDat(booking.id);
+      setBooking(resB.data);
+      phatAmThanhTing();
+      window.dispatchEvent(new Event('cap_nhat_ve'));
+      window.dispatchEvent(new Event('cap_nhat_so_du_vi'));
+      window.dispatchEvent(new Event('cap_nhat_thong_bao'));
+    } catch (err) {
+      setMsg(err.response?.data?.message || 'Thanh toán bằng ví thất bại.');
     } finally {
       setProcessing(false);
     }
@@ -586,48 +612,136 @@ export default function TrangThanhToan({ user, nguoiDung }) {
                 </div>
               </div>
 
-              {/* Tabs chọn: VietQR hoặc Thẻ Visa */}
-              <div className="grid grid-cols-2 gap-3 mb-6">
+              {/* Tabs chọn: VietQR hoặc Ví SportPay hoặc Thẻ Visa */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
                 <button
                   type="button"
                   onClick={() => setPhuongThuc('vietqr')}
-                  className={`p-4 rounded-2xl border-2 flex items-center gap-3 transition cursor-pointer text-left ${
+                  className={`p-3.5 rounded-2xl border-2 flex items-center gap-3 transition cursor-pointer text-left ${
                     phuongThuc === 'vietqr'
                       ? 'border-brand-600 bg-brand-50/40 text-brand-900 ring-2 ring-brand-500/20'
                       : 'border-slate-200 hover:border-slate-300 text-slate-600 hover:bg-slate-50'
                   }`}
                 >
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
                     phuongThuc === 'vietqr' ? 'bg-brand-600 text-white' : 'bg-slate-100 text-slate-600'
                   }`}>
-                    <QrCode className="w-5 h-5" />
+                    <QrCode className="w-4 h-4" />
                   </div>
                   <div>
-                    <span className="block font-black text-sm">Chuyển khoản VietQR</span>
-                    <span className="block text-[11px] text-slate-500 mt-0.5">App Ngân hàng & Ví MoMo</span>
+                    <span className="block font-black text-xs sm:text-sm">VietQR</span>
+                    <span className="block text-[10px] text-slate-500">Chuyển khoản tức thì</span>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setPhuongThuc('wallet')}
+                  className={`p-3.5 rounded-2xl border-2 flex items-center gap-3 transition cursor-pointer text-left ${
+                    phuongThuc === 'wallet'
+                      ? 'border-amber-500 bg-amber-50/50 text-amber-950 ring-2 ring-amber-500/20'
+                      : 'border-slate-200 hover:border-slate-300 text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                    phuongThuc === 'wallet' ? 'bg-amber-500 text-white' : 'bg-slate-100 text-slate-600'
+                  }`}>
+                    <Wallet className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="block font-black text-xs sm:text-sm">Ví SportPay</span>
+                    <span className="block text-[10px] text-amber-700 font-bold">{soDuVi.toLocaleString('vi-VN')} đ</span>
                   </div>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setPhuongThuc('card')}
-                  className={`p-4 rounded-2xl border-2 flex items-center gap-3 transition cursor-pointer text-left ${
+                  className={`p-3.5 rounded-2xl border-2 flex items-center gap-3 transition cursor-pointer text-left ${
                     phuongThuc === 'card'
-                      ? 'border-brand-600 bg-brand-50/40 text-brand-900 ring-2 ring-brand-500/20'
+                      ? 'border-blue-600 bg-blue-50/40 text-blue-900 ring-2 ring-blue-500/20'
                       : 'border-slate-200 hover:border-slate-300 text-slate-600 hover:bg-slate-50'
                   }`}
                 >
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
                     phuongThuc === 'card' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'
                   }`}>
-                    <CreditCard className="w-5 h-5" />
+                    <CreditCard className="w-4 h-4" />
                   </div>
                   <div>
-                    <span className="block font-black text-sm">Thẻ Quốc Tế (Visa)</span>
-                    <span className="block text-[11px] text-slate-500 mt-0.5">Visa, Mastercard, JCB</span>
+                    <span className="block font-black text-xs sm:text-sm">Thẻ Visa / Master</span>
+                    <span className="block text-[10px] text-slate-500">Thanh toán quốc tế</span>
                   </div>
                 </button>
               </div>
+
+              {/* NỘI DUNG TAB 2: VÍ SPORTPAY */}
+              {phuongThuc === 'wallet' && (
+                <div className="space-y-5 animate-in fade-in duration-200 mb-6">
+                  <div className="bg-gradient-to-br from-amber-500/10 via-orange-500/5 to-white rounded-3xl p-6 border border-amber-200/80 shadow-sm">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-500 text-white flex items-center justify-center shadow-md shadow-amber-500/30">
+                          <Wallet className="w-6 h-6" />
+                        </div>
+                        <div>
+                          <h3 className="font-black text-slate-900 text-base">Ví Điện Tử SportPay</h3>
+                          <p className="text-xs text-slate-500">Thanh toán tức thì 1-chạm không cần quét mã</p>
+                        </div>
+                      </div>
+                      <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-700">
+                        KHẢ DỤNG
+                      </span>
+                    </div>
+
+                    <div className="p-4 rounded-2xl bg-white border border-slate-200/80 space-y-3 mb-5">
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-slate-500 font-medium">Số dư ví khả dụng:</span>
+                        <span className="font-black text-amber-600 text-base">{soDuVi.toLocaleString('vi-VN')} đ</span>
+                      </div>
+                      <div className="flex justify-between items-center text-xs pt-2 border-t border-slate-100">
+                        <span className="text-slate-500 font-medium">Số tiền cần thanh toán:</span>
+                        <span className="font-black text-slate-900 text-base">{Number(booking?.totalAmount || 0).toLocaleString('vi-VN')} đ</span>
+                      </div>
+                      <div className="flex justify-between items-center text-xs pt-2 border-t border-slate-100">
+                        <span className="text-slate-500 font-medium">Số dư sau thanh toán:</span>
+                        <span className={`font-black ${soDuVi >= Number(booking?.totalAmount || 0) ? 'text-emerald-600' : 'text-rose-600'}`}>
+                          {(soDuVi - Number(booking?.totalAmount || 0)).toLocaleString('vi-VN')} đ
+                        </span>
+                      </div>
+                    </div>
+
+                    {soDuVi >= Number(booking?.totalAmount || 0) ? (
+                      <button
+                        type="button"
+                        onClick={handleThanhToanBangVi}
+                        disabled={processing || payment?.status === 'SUCCESS'}
+                        className="w-full py-4 rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-600 hover:to-orange-600 text-white font-black text-sm transition cursor-pointer shadow-lg shadow-orange-500/25 flex items-center justify-center gap-2 disabled:opacity-50"
+                      >
+                        {processing ? 'Đang trừ tiền ví...' : (
+                          <>
+                            <Sparkles className="w-4 h-4 text-amber-200" />
+                            <span>Xác nhận Thanh toán bằng Ví (1-Chạm)</span>
+                          </>
+                        )}
+                      </button>
+                    ) : (
+                      <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-center">
+                        <p className="text-xs font-bold text-rose-700 mb-2">
+                          Số dư ví không đủ (còn thiếu {(Number(booking?.totalAmount || 0) - soDuVi).toLocaleString('vi-VN')} đ)
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => setPhuongThuc('vietqr')}
+                          className="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold transition cursor-pointer shadow"
+                        >
+                          Chuyển sang Quét mã VietQR
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* NỘI DUNG TAB 1: VIETQR */}
               {phuongThuc === 'vietqr' && (
@@ -934,9 +1048,16 @@ export default function TrangThanhToan({ user, nguoiDung }) {
                       <div className="flex justify-between text-slate-500">
                         <span>Tiền thuê sân:</span>
                         <span className="font-semibold text-slate-800">
-                          {Number(addonInfo?.totalCourtPrice || (Number(booking.totalAmount) + Number(addonInfo?.discountAmount || 0))).toLocaleString('vi-VN')} đ
+                          {Number(addonInfo?.totalCourtPrice || (Number(booking.totalAmount) + Number(addonInfo?.discountAmount || 0) - Number(addonInfo?.addonsPrice || 0))).toLocaleString('vi-VN')} đ
                         </span>
                       </div>
+
+                      {addonInfo?.addonsPrice > 0 && (
+                        <div className="flex justify-between text-amber-700">
+                          <span>Dịch vụ & tiện ích kèm:</span>
+                          <span className="font-bold">+{Number(addonInfo.addonsPrice).toLocaleString('vi-VN')} đ</span>
+                        </div>
+                      )}
 
                       {addonInfo?.discountAmount > 0 && (
                         <div className="flex justify-between text-emerald-600">
@@ -948,22 +1069,16 @@ export default function TrangThanhToan({ user, nguoiDung }) {
                       )}
 
                       <div className="flex justify-between items-baseline pt-2 border-t border-slate-100">
-                        <span className="text-sm font-black text-slate-900">Tổng thanh toán chuyển khoản:</span>
+                        <span className="text-sm font-black text-slate-900">Tổng thanh toán:</span>
                         <span className="text-2xl font-black text-brand-600">
                           {Number(booking.totalAmount).toLocaleString('vi-VN')} <span className="text-sm text-slate-400 font-normal">{booking.currency || 'VND'}</span>
                         </span>
                       </div>
 
                       {addonInfo?.addonsPrice > 0 && (
-                        <div className="mt-2 pt-2 border-t border-dashed border-slate-100 space-y-0.5">
-                          <div className="flex justify-between text-amber-700">
-                            <span>Dịch vụ gọi thêm:</span>
-                            <span className="font-bold">+{Number(addonInfo.addonsPrice).toLocaleString('vi-VN')} đ</span>
-                          </div>
-                          <p className="text-[10px] text-slate-400 italic">
-                            💡 Thanh toán trực tiếp tại quầy tiếp tân khi nhận sân thi đấu.
-                          </p>
-                        </div>
+                        <p className="text-[10px] text-emerald-600 font-semibold pt-1">
+                          ✓ Đã tính trọn gói tiền sân và {addonInfo.addons?.length || 1} dịch vụ đi kèm vào thanh toán.
+                        </p>
                       )}
                     </div>
                   </>

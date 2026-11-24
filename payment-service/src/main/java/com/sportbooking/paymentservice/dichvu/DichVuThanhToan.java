@@ -34,6 +34,7 @@ public class DichVuThanhToan {
     private final KhoDoiSoatThanhToan khoDoiSoatThanhToan;
     private final KhoHoanTien khoHoanTien;
     private final DichVuGoiDatSanNoiBo dichVuGoiDatSanNoiBo;
+    private final DichVuVi dichVuVi;
     private final TransactionTemplate transactionTemplate;
 
     @Transactional
@@ -272,6 +273,11 @@ public class DichVuThanhToan {
 
     @Transactional
     public void hoanTienNoiBo(Long bookingId, String lyDo) {
+        hoanTienNoiBo(bookingId, null, lyDo);
+    }
+
+    @Transactional
+    public void hoanTienNoiBo(Long bookingId, BigDecimal soTienHoan, String lyDo) {
         GiaoDichThanhToan tx = khoGiaoDichThanhToan.findByBookingId(bookingId)
                 .orElseThrow(() -> new LoiNghiepVu(HttpStatus.NOT_FOUND, "PAYMENT_NOT_FOUND", "Không tìm thấy giao dịch thanh toán để hoàn tiền."));
 
@@ -280,18 +286,29 @@ public class DichVuThanhToan {
             return;
         }
 
+        BigDecimal actualAmount = (soTienHoan != null && soTienHoan.compareTo(BigDecimal.ZERO) > 0)
+                ? soTienHoan
+                : tx.getAmount();
+
         tx.setStatus(TrangThaiThanhToan.REFUNDED);
         khoGiaoDichThanhToan.save(tx);
 
         HoanTien refund = HoanTien.builder()
                 .paymentId(tx.getId())
                 .bookingId(bookingId)
-                .amount(tx.getAmount())
+                .amount(actualAmount)
                 .currency(tx.getCurrency())
-                .reason(lyDo != null ? lyDo : "Huy don dat truoc 24 gio")
+                .reason(lyDo != null ? lyDo : "Huy don dat san")
                 .build();
         khoHoanTien.save(refund);
-        log.info("Da thuc hien hoan tien {} {} cho bookingId {}", tx.getAmount(), tx.getCurrency(), bookingId);
+
+        // Cong tien hoan truc tiep vao Vi ESportKing cua khach hang
+        if (tx.getCustomerId() != null && tx.getCustomerId() > 0) {
+            dichVuVi.hoanTienVaoVi(tx.getCustomerId(), actualAmount, bookingId, lyDo);
+        }
+
+        log.info("Da thuc hien hoan tien {} {} vao Vi cho bookingId {} (customerId={})",
+                actualAmount, tx.getCurrency(), bookingId, tx.getCustomerId());
     }
 
     @Transactional

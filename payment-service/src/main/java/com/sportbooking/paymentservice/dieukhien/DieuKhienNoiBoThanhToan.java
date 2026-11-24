@@ -40,6 +40,7 @@ public class DieuKhienNoiBoThanhToan {
     @PostMapping("/booking/{bookingId}/refund")
     public ResponseEntity<Void> hoanTien(
             @PathVariable Long bookingId,
+            @RequestParam(required = false) java.math.BigDecimal amount,
             @RequestParam(defaultValue = "Huy don hop le") String reason,
             @RequestHeader(value = "X-Internal-Api-Key", required = false) String khoaGuiLen) {
 
@@ -47,7 +48,7 @@ public class DieuKhienNoiBoThanhToan {
             throw new LoiNghiepVu(HttpStatus.FORBIDDEN, "FORBIDDEN", "Truy cap noi bo bi tu choi");
         }
 
-        dichVuThanhToan.hoanTienNoiBo(bookingId, reason);
+        dichVuThanhToan.hoanTienNoiBo(bookingId, amount, reason);
         return ResponseEntity.ok().build();
     }
 }

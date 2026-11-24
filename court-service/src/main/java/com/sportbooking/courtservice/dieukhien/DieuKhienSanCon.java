@@ -45,7 +45,7 @@ public class DieuKhienSanCon {
         if (userId == null || (!"OWNER".equals(userRole) && !"ADMIN".equals(userRole))) {
             throw new LoiNghiepVu(HttpStatus.FORBIDDEN, "FORBIDDEN", "Bạn không có quyền cập nhật thông tin sân này.");
         }
-        return ResponseEntity.ok(dichVuSanCon.capNhatSanCon(userId, id, yeuCau));
+        return ResponseEntity.ok(dichVuSanCon.capNhatSanCon(userId, userRole, id, yeuCau));
     }
 
     @PatchMapping("/courts/{id}/status")
@@ -58,7 +58,7 @@ public class DieuKhienSanCon {
         if (userId == null || (!"OWNER".equals(userRole) && !"ADMIN".equals(userRole))) {
             throw new LoiNghiepVu(HttpStatus.FORBIDDEN, "FORBIDDEN", "Bạn không có quyền thay đổi trạng thái sân này.");
         }
-        return ResponseEntity.ok(dichVuSanCon.doiTrangThaiSanCon(userId, id, yeuCau.getStatus()));
+        return ResponseEntity.ok(dichVuSanCon.doiTrangThaiSanCon(userId, userRole, id, yeuCau.getStatus()));
     }
 
     @PutMapping("/courts/{id}/operating-hours")

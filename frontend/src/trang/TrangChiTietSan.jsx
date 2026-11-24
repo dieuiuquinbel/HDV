@@ -32,6 +32,31 @@ import { apiDichVu } from '../dichvu/api';
 import { THONG_TIN_CO_SO, BIEN_THE_SAN_CON, DAC_QUYEN_SAN } from '../hangso/coSoSportKing';
 import { DICH_VU_THEO_MON } from '../hangso/danhMucDichVu';
 
+// Danh sach voucher mac dinh he thong ESportKing
+const DANH_SACH_VOUCHERS_CHUYEN_SAN = [
+  { code: 'CHAOBANMOI', discountPercent: 20, maxDiscount: 50000, minOrderAmount: 100000, desc: 'Giảm 20% cho thành viên mới (tối đa 50k)' },
+  { code: 'THELUC2026', discountPercent: 15, maxDiscount: 40000, minOrderAmount: 100000, desc: 'Giảm 15% tối đa 40k ngày thường' },
+  { code: 'CUOITUAN', discountPercent: 15, maxDiscount: 80000, minOrderAmount: 150000, desc: 'Giảm 15% tối đa 80k cuối tuần' },
+  { code: 'CUOITUANXU', discountPercent: 0, discountAmount: 25000, minOrderAmount: 150000, desc: 'Giảm ngay 25k cho đơn từ 150k' },
+  { code: 'VIPSPORT', discountPercent: 0, discountAmount: 30000, minOrderAmount: 200000, desc: 'Giảm ngay 30k cho khách thân thiết (đơn từ 200k)' },
+  { code: 'PICKLE50', discountPercent: 10, maxDiscount: 35000, minOrderAmount: 100000, desc: 'Giảm 10% tối đa 35k cho sân thể thao' },
+  { code: 'TRIAN2026', discountPercent: 0, discountAmount: 20000, minOrderAmount: 100000, desc: 'Giảm ngay 20k tri ân khách hàng (đơn từ 100k)' },
+  { code: 'THETHAO50', discountPercent: 0, discountAmount: 50000, minOrderAmount: 200000, desc: 'Giảm ngay 50.000đ cho đơn từ 200k' }
+];
+
+export const tinhTienGiamVoucherThucTe = (v, tongTien) => {
+  if (!v || !tongTien || tongTien <= 0) return 0;
+  if (v.minOrderAmount && tongTien < v.minOrderAmount) return 0;
+  if (v.discountPercent && Number(v.discountPercent) > 0) {
+    const giam = Math.round(tongTien * (Number(v.discountPercent) / 100));
+    return v.maxDiscount ? Math.min(giam, Number(v.maxDiscount)) : giam;
+  }
+  if (v.discountAmount && Number(v.discountAmount) > 0) {
+    return Math.min(Number(v.discountAmount), tongTien);
+  }
+  return 0;
+};
+
 // Hàm lấy ngày theo offset
 const layNgayTheoOffset = (offset = 0) => {
   const d = new Date();
@@ -154,6 +179,7 @@ export default function TrangChiTietSan({ user: propUser }) {
         courtCode: realCourt?.courtCode || tpl.code || courtCodeParam,
         realCourtId: realCourt ? realCourt.id : tpl.id,
         price: realCourt && Number(realCourt.basePrice) > 0 ? Number(realCourt.basePrice) : tpl.price,
+        status: realCourt?.status || 'ACTIVE',
         availableCount
       };
     });
@@ -214,31 +240,31 @@ export default function TrangChiTietSan({ user: propUser }) {
     }
   }, [selectedDate, startSlot]);
 
-  // Voucher lấy từ Backend
-  const [vouchers, setVouchers] = useState([
-    { code: 'CHAOBANMOI', discountPercent: 20, desc: 'Giảm 20% đơn đầu tiên (tối đa 100k)' },
-    { code: 'THETHAO50', discountAmount: 50000, desc: 'Giảm ngay 50.000đ cho đơn từ 200k' },
-    { code: 'CUOITUAN', discountPercent: 15, desc: 'Giảm 15% đơn cuối tuần (tối đa 80k)' },
-  ]);
-  const [selectedVoucher, setSelectedVoucher] = useState('CHAOBANMOI');
+  // Voucher lấy từ Backend & Đồng bộ hệ thống
+  const voucherUrlParam = searchParams.get('voucher');
+  const [daTuChonVoucher, setDaTuChonVoucher] = useState(!!voucherUrlParam);
+  const [vouchers, setVouchers] = useState(DANH_SACH_VOUCHERS_CHUYEN_SAN);
+  const [selectedVoucher, setSelectedVoucher] = useState(() => voucherUrlParam || '');
 
   // Khung giờ khả dụng từ Backend
   const [khungGioKhaDung, setKhungGioKhaDung] = useState([]);
 
-  // Tải danh sách voucher thật từ Database
+  // Tải danh sách voucher thật từ Database và kết hợp với dữ liệu chuẩn
   useEffect(() => {
     apiDichVu.layDanhSachUuDai()
       .then(res => {
         if (Array.isArray(res.data) && res.data.length > 0) {
-          const list = res.data.map(v => ({
-            code: v.code,
-            discountPercent: v.discountPercent,
-            discountAmount: v.discountAmount,
-            maxDiscount: v.maxDiscount,
-            minOrderAmount: v.minOrderAmount,
-            desc: v.description || (v.discountPercent ? `Giảm ${v.discountPercent}%` : `Giảm ${Number(v.discountAmount).toLocaleString('vi-VN')}đ`)
-          }));
-          setVouchers(list);
+          const map = new Map();
+          DANH_SACH_VOUCHERS_CHUYEN_SAN.forEach(v => map.set(v.code, { ...v }));
+          res.data.forEach(v => {
+            const cur = map.get(v.code) || {};
+            map.set(v.code, {
+              ...cur,
+              ...v,
+              desc: v.description || cur.desc || (v.discountPercent ? `Giảm ${v.discountPercent}%` : `Giảm ${Number(v.discountAmount).toLocaleString('vi-VN')}đ`)
+            });
+          });
+          setVouchers(Array.from(map.values()));
         }
       })
       .catch(() => {});
@@ -259,6 +285,19 @@ export default function TrangChiTietSan({ user: propUser }) {
         });
     }
   }, [selectedCourt, selectedDate]);
+
+  // Danh mục dịch vụ chuyên biệt cho môn hiện tại
+  const danhSachDichVu = useMemo(() => {
+    return DICH_VU_THEO_MON[maMon] || DICH_VU_THEO_MON.FOOTBALL;
+  }, [maMon]);
+
+  // Tổng tiền các dịch vụ kèm theo đã chọn
+  const tongTienDichVu = useMemo(() => {
+    return selectedAddons.reduce((sum, addonId) => {
+      const item = danhSachDichVu.find(d => d.id === addonId);
+      return sum + (item ? item.price : 0);
+    }, 0);
+  }, [selectedAddons, danhSachDichVu]);
 
   // Gọi API tính báo giá Realtime từ Backend Booking Service (chuẩn xác 100% về tiền & voucher & giờ đóng/mở)
   useEffect(() => {
@@ -282,7 +321,9 @@ export default function TrangChiTietSan({ user: propUser }) {
       bookingDate: selectedDate,
       startSlot: slotFormatted,
       durationMinutes: Number(durationMinutes),
-      voucherCode: selectedVoucher || null
+      voucherCode: selectedVoucher || null,
+      addonAmount: tongTienDichVu,
+      addonSummary: selectedAddons.map(id => danhSachDichVu.find(d => d.id === id)?.name).filter(Boolean).join(', ')
     })
       .then(res => {
         if (!cancel && res.data) {
@@ -305,17 +346,12 @@ export default function TrangChiTietSan({ user: propUser }) {
     return () => {
       cancel = true;
     };
-  }, [selectedCourt?.realCourtId, selectedCourt?.id, selectedDate, startSlot, durationMinutes, selectedVoucher]);
+  }, [selectedCourt?.realCourtId, selectedCourt?.id, selectedDate, startSlot, durationMinutes, selectedVoucher, tongTienDichVu]);
 
   // Trạng thái submit & hết hạn phiên
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState(null);
   const [isSessionExpired, setIsSessionExpired] = useState(false);
-
-  // Danh mục dịch vụ chuyên biệt cho môn hiện tại
-  const danhSachDichVu = useMemo(() => {
-    return DICH_VU_THEO_MON[maMon] || DICH_VU_THEO_MON.FOOTBALL;
-  }, [maMon]);
 
   // Toggle dịch vụ kèm theo
   const toggleDichVu = (addonId) => {
@@ -367,12 +403,28 @@ export default function TrangChiTietSan({ user: propUser }) {
     return tong;
   }, [previewGia?.totalCourtPrice, donGiaSan, startSlot, durationMinutes]);
 
-  const tongTienDichVu = useMemo(() => {
-    return selectedAddons.reduce((sum, addonId) => {
-      const item = danhSachDichVu.find(d => d.id === addonId);
-      return sum + (item ? item.price : 0);
-    }, 0);
-  }, [selectedAddons, danhSachDichVu]);
+  // Tìm voucher tốt nhất cho số tiền thuê sân hiện tại
+  const bestVoucherInfo = useMemo(() => {
+    if (!tongTienSan || tongTienSan <= 0 || !vouchers.length) return null;
+    let best = null;
+    let maxGiam = 0;
+
+    for (const v of vouchers) {
+      const g = tinhTienGiamVoucherThucTe(v, tongTienSan);
+      if (g > maxGiam) {
+        maxGiam = g;
+        best = v;
+      }
+    }
+    return best ? { voucher: best, discount: maxGiam } : null;
+  }, [tongTienSan, vouchers]);
+
+  // Tự động áp dụng mã giảm giá tốt nhất nếu người dùng chưa tự tay chọn hoặc hủy chọn
+  useEffect(() => {
+    if (!daTuChonVoucher && bestVoucherInfo) {
+      setSelectedVoucher(bestVoucherInfo.voucher.code);
+    }
+  }, [bestVoucherInfo, daTuChonVoucher]);
 
   // Tiền giảm voucher: Ưu tiên backend preview
   const tienGiam = useMemo(() => {
@@ -382,21 +434,27 @@ export default function TrangChiTietSan({ user: propUser }) {
     if (!selectedVoucher) return 0;
     const v = vouchers.find(x => x.code === selectedVoucher);
     if (!v) return 0;
-    if (v.minOrderAmount && tongTienSan < v.minOrderAmount) {
+    const tongTruocGiam = tongTienSan + tongTienDichVu;
+    if (v.minOrderAmount && tongTruocGiam < v.minOrderAmount) {
       return 0;
     }
     if (v.discountPercent) {
-      const giam = Math.round(tongTienSan * (v.discountPercent / 100));
+      const giam = Math.round(tongTruocGiam * (v.discountPercent / 100));
       return v.maxDiscount ? Math.min(giam, v.maxDiscount) : Math.min(giam, 100000);
     }
     if (v.discountAmount) {
-      return Math.min(v.discountAmount, tongTienSan);
+      return Math.min(v.discountAmount, tongTruocGiam);
     }
     return 0;
-  }, [previewGia?.discountAmount, selectedVoucher, vouchers, tongTienSan]);
+  }, [previewGia?.discountAmount, selectedVoucher, vouchers, tongTienSan, tongTienDichVu]);
 
-  // Tiền thanh toán giữ sân online (khớp 100% với backend)
-  const tongThanhToan = previewGia?.finalAmount != null ? Number(previewGia.finalAmount) : Math.max(0, tongTienSan - tienGiam);
+  // Tiền thanh toán trọn gói (Tiền sân + Tiền dịch vụ kèm theo - Tiền giảm voucher)
+  const tongThanhToan = useMemo(() => {
+    if (previewGia?.finalAmount != null) {
+      return Number(previewGia.finalAmount);
+    }
+    return Math.max(0, tongTienSan + tongTienDichVu - tienGiam);
+  }, [previewGia?.finalAmount, tongTienSan, tongTienDichVu, tienGiam]);
 
   // Giờ bắt đầu và kết thúc
   const gioBatDauHienThi = startSlot.slice(0, 5);
@@ -529,7 +587,9 @@ export default function TrangChiTietSan({ user: propUser }) {
         startSlot: `${gioBatDauHienThi}:00`,
         durationMinutes: Number(durationMinutes),
         slotCount: Math.ceil(durationMinutes / 60),
-        voucherCode: selectedVoucher || null
+        voucherCode: selectedVoucher || null,
+        addonAmount: tongTienDichVu,
+        addonSummary: selectedAddons.map(id => danhSachDichVu.find(d => d.id === id)?.name).filter(Boolean).join(', ')
       };
       const idempotencyKey = `bk_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
       
@@ -667,6 +727,7 @@ export default function TrangChiTietSan({ user: propUser }) {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
                 {danhSachSanBienThe.map((court) => {
                   const isSelected = selectedCourt?.id === court.id;
+                  const isMaintenance = court.status === 'MAINTENANCE' || court.status === 'INACTIVE';
 
                   return (
                     <div
@@ -674,20 +735,24 @@ export default function TrangChiTietSan({ user: propUser }) {
                       onClick={() => setSelectedCourt(court)}
                       className={`p-4 rounded-2xl border-2 cursor-pointer transition-all flex flex-col justify-between relative overflow-hidden ${
                         isSelected
-                          ? 'border-brand-600 bg-brand-50/40 shadow-md ring-1 ring-brand-500/30'
-                          : 'border-slate-200/90 hover:border-brand-300 bg-white hover:bg-slate-50/50'
+                          ? isMaintenance
+                            ? 'border-amber-500 bg-amber-50/40 shadow-md ring-1 ring-amber-400'
+                            : 'border-brand-600 bg-brand-50/40 shadow-md ring-1 ring-brand-500/30'
+                          : isMaintenance
+                            ? 'border-slate-200 bg-slate-50/80 opacity-80 hover:border-amber-300'
+                            : 'border-slate-200/90 hover:border-brand-300 bg-white hover:bg-slate-50/50'
                       }`}
                     >
                       {/* Tag góc */}
                       <div className="flex items-center justify-between gap-1 mb-2">
                         <span className={`text-[10px] font-black px-2 py-0.5 rounded-md ${
-                          isSelected ? 'bg-brand-600 text-white' : 'bg-slate-100 text-slate-700'
+                          isSelected ? (isMaintenance ? 'bg-amber-600 text-white' : 'bg-brand-600 text-white') : 'bg-slate-100 text-slate-700'
                         }`}>
-                          {court.tag}
+                          {isMaintenance ? 'BẢO TRÌ' : court.tag}
                         </span>
 
                         <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                          isSelected ? 'border-brand-600 bg-brand-600 text-white' : 'border-slate-300'
+                          isSelected ? (isMaintenance ? 'border-amber-600 bg-amber-600 text-white' : 'border-brand-600 bg-brand-600 text-white') : 'border-slate-300'
                         }`}>
                           {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
                         </div>
@@ -711,10 +776,16 @@ export default function TrangChiTietSan({ user: propUser }) {
                           <div className="px-2 py-0.5 rounded bg-slate-100 text-slate-600 text-[10px] font-bold">
                             📍 {court.surface}
                           </div>
-                          <div className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-black border border-emerald-200 flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                            <span>Còn {court.availableCount || 4} sân trống</span>
-                          </div>
+                          {isMaintenance ? (
+                            <div className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-black border border-amber-300 flex items-center gap-1">
+                              <span>⚠️ Đang bảo trì / Tạm khóa</span>
+                            </div>
+                          ) : (
+                            <div className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-black border border-emerald-200 flex items-center gap-1">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                              <span>Còn {court.availableCount || 4} sân trống</span>
+                            </div>
+                          )}
                         </div>
                       </div>
 
@@ -1106,24 +1177,66 @@ export default function TrangChiTietSan({ user: propUser }) {
                 )}
               </div>
 
-              {/* Chọn Voucher */}
+              {/* Chọn Voucher & Tự Động Áp Dụng */}
               <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1.5 flex items-center gap-1">
-                  <Tag className="w-3.5 h-3.5 text-rose-500" />
-                  Mã ưu đãi / Voucher giảm giá:
-                </label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-bold text-slate-700 flex items-center gap-1">
+                    <Tag className="w-3.5 h-3.5 text-rose-500" />
+                    Mã ưu đãi / Voucher giảm giá:
+                  </label>
+                  {bestVoucherInfo && selectedVoucher !== bestVoucherInfo.voucher.code && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedVoucher(bestVoucherInfo.voucher.code);
+                        setDaTuChonVoucher(false);
+                      }}
+                      className="text-[11px] text-brand-600 font-bold hover:underline flex items-center gap-1"
+                    >
+                      <Sparkles className="w-3 h-3 text-amber-500" />
+                      Dùng mã tốt nhất (-{bestVoucherInfo.discount.toLocaleString('vi-VN')}đ)
+                    </button>
+                  )}
+                </div>
+
                 <select
                   value={selectedVoucher}
-                  onChange={(e) => setSelectedVoucher(e.target.value)}
+                  onChange={(e) => {
+                    setSelectedVoucher(e.target.value);
+                    setDaTuChonVoucher(true);
+                  }}
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
                 >
                   <option value="">-- Không áp dụng voucher --</option>
-                  {vouchers.map((v) => (
-                    <option key={v.code} value={v.code}>
-                      {v.code} - {v.desc}
-                    </option>
-                  ))}
+                  {vouchers.map((v) => {
+                    const discount = tinhTienGiamVoucherThucTe(v, tongTienSan);
+                    const isBest = bestVoucherInfo?.voucher?.code === v.code;
+                    const isEligible = discount > 0;
+
+                    let label = `${v.code} - ${v.desc}`;
+                    if (isEligible) {
+                      label += ` (Giảm ${discount.toLocaleString('vi-VN')} đ)${isBest ? ' ⭐ Tốt nhất' : ''}`;
+                    } else if (v.minOrderAmount && tongTienSan < v.minOrderAmount) {
+                      label += ` (Cần đơn từ ${Number(v.minOrderAmount).toLocaleString('vi-VN')} đ)`;
+                    }
+
+                    return (
+                      <option key={v.code} value={v.code}>
+                        {label}
+                      </option>
+                    );
+                  })}
                 </select>
+
+                {/* Banner tự động áp dụng mã tốt nhất */}
+                {selectedVoucher && bestVoucherInfo?.voucher?.code === selectedVoucher && tienGiam > 0 && (
+                  <div className="mt-2 p-2 bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-xl flex items-center gap-2 text-xs text-emerald-800 font-semibold">
+                    <Sparkles className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>
+                      Hệ thống đã tự động áp dụng mã giảm giá tốt nhất: <strong>{selectedVoucher}</strong> (-{tienGiam.toLocaleString('vi-VN')} đ)
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Bảng kê tổng chi phí */}
@@ -1138,6 +1251,13 @@ export default function TrangChiTietSan({ user: propUser }) {
                   <span className="font-bold text-slate-800">{tongTienSan.toLocaleString('vi-VN')} đ</span>
                 </div>
 
+                {tongTienDichVu > 0 && (
+                  <div className="flex justify-between text-amber-700 font-semibold bg-amber-50/80 p-2 rounded-xl border border-amber-200/60">
+                    <span>Dịch vụ & tiện ích kèm ({selectedAddons.length}):</span>
+                    <span className="font-bold">+{tongTienDichVu.toLocaleString('vi-VN')} đ</span>
+                  </div>
+                )}
+
                 {tienGiam > 0 && (
                   <div className="flex justify-between text-emerald-600 font-bold bg-emerald-50/80 p-2 rounded-xl border border-emerald-200/60">
                     <span>Mã giảm giá ({selectedVoucher}):</span>
@@ -1147,8 +1267,10 @@ export default function TrangChiTietSan({ user: propUser }) {
 
                 <div className="pt-2 border-t border-slate-200 flex justify-between items-baseline">
                   <div>
-                    <span className="font-black text-slate-900 text-sm block">Thanh toán giữ sân:</span>
-                    <span className="text-[10px] text-slate-400">Chuyển khoản / Quét VietQR</span>
+                    <span className="font-black text-slate-900 text-sm block">Tổng thanh toán:</span>
+                    <span className="text-[10px] text-slate-400">
+                      {tongTienDichVu > 0 ? 'Trọn gói tiền sân & dịch vụ' : 'Chuyển khoản / Quét VietQR / Ví'}
+                    </span>
                   </div>
                   <span className="text-2xl font-black text-brand-600">
                     {tongThanhToan.toLocaleString('vi-VN')} đ
@@ -1156,15 +1278,9 @@ export default function TrangChiTietSan({ user: propUser }) {
                 </div>
 
                 {tongTienDichVu > 0 && (
-                  <div className="pt-2 border-t border-dashed border-slate-200 space-y-1">
-                    <div className="flex justify-between text-amber-700 font-semibold">
-                      <span>Dịch vụ & tiện ích kèm ({selectedAddons.length}):</span>
-                      <span>+{tongTienDichVu.toLocaleString('vi-VN')} đ</span>
-                    </div>
-                    <p className="text-[10px] text-slate-500 italic">
-                      💡 Đồ ăn/nước uống sẽ được thanh toán trực tiếp tại sân khi nhận phòng.
-                    </p>
-                  </div>
+                  <p className="text-[11px] text-emerald-600 font-semibold">
+                    ✓ Đã tính trọn gói tiền sân và {selectedAddons.length} dịch vụ đi kèm vào tổng thanh toán.
+                  </p>
                 )}
 
                 {tienGiam > 0 && (
@@ -1202,24 +1318,30 @@ export default function TrangChiTietSan({ user: propUser }) {
               )}
 
               {/* Nút Đặt Sân */}
-              <button
-                onClick={handleXacNhanDatSan}
-                disabled={submitting || previewLoading || !previewGia || !!previewError}
-                className="w-full py-4 bg-brand-600 hover:bg-brand-700 active:scale-95 text-white rounded-2xl font-black text-sm shadow-lg shadow-brand-500/30 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {submitting ? (
-                  <span>Đang giữ chỗ...</span>
-                ) : previewLoading ? (
-                  <span>Đang tính báo giá...</span>
-                ) : previewError ? (
-                  <span>Khung Giờ Không Khả Dụng</span>
-                ) : (
-                  <>
-                    <span>Xác Nhận Thuê & Thanh Toán</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </>
-                )}
-              </button>
+              {selectedCourt?.status === 'MAINTENANCE' || selectedCourt?.status === 'INACTIVE' ? (
+                <div className="w-full py-3.5 px-4 bg-amber-50 border border-amber-300 rounded-2xl text-amber-800 text-center text-xs font-bold flex items-center justify-center gap-2">
+                  <span>⚠️ Sân này hiện đang bảo trì / tạm khóa. Vui lòng chọn sân khác.</span>
+                </div>
+              ) : (
+                <button
+                  onClick={handleXacNhanDatSan}
+                  disabled={submitting || previewLoading || !previewGia || !!previewError}
+                  className="w-full py-4 bg-brand-600 hover:bg-brand-700 active:scale-95 text-white rounded-2xl font-black text-sm shadow-lg shadow-brand-500/30 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {submitting ? (
+                    <span>Đang giữ chỗ...</span>
+                  ) : previewLoading ? (
+                    <span>Đang tính báo giá...</span>
+                  ) : previewError ? (
+                    <span>Khung Giờ Không Khả Dụng</span>
+                  ) : (
+                    <>
+                      <span>Xác Nhận Thuê & Thanh Toán</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </>
+                  )}
+                </button>
+              )}
 
               <div className="text-center text-[10px] text-slate-400 space-y-0.5">
                 <p>🔒 Khóa slot thời gian thực • Không bao giờ trùng sân</p>

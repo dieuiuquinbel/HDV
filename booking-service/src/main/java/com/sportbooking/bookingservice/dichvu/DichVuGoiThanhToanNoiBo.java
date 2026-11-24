@@ -38,14 +38,27 @@ public class DichVuGoiThanhToanNoiBo {
     }
 
     public boolean yeuCauHoanTien(Long bookingId, String lyDo) {
+        return yeuCauHoanTien(bookingId, null, lyDo);
+    }
+
+    public boolean yeuCauHoanTien(Long bookingId, java.math.BigDecimal amount, String lyDo) {
         try {
-            restClient.post()
-                    .uri("/internal/v1/payments/booking/{bookingId}/refund?reason={reason}", bookingId, lyDo)
+            var uriSpec = restClient.post()
+                    .uri(uriBuilder -> {
+                        var builder = uriBuilder.path("/internal/v1/payments/booking/{bookingId}/refund");
+                        if (amount != null) {
+                            builder.queryParam("amount", amount);
+                        }
+                        if (lyDo != null) {
+                            builder.queryParam("reason", lyDo);
+                        }
+                        return builder.build(bookingId);
+                    })
                     .header("X-Internal-Api-Key", internalApiKey)
-                    .header("X-Caller-Service", "booking-service")
-                    .retrieve()
-                    .toBodilessEntity();
-            log.info("Da gui yeu cau hoan tien thanh cong cho bookingId={}", bookingId);
+                    .header("X-Caller-Service", "booking-service");
+
+            uriSpec.retrieve().toBodilessEntity();
+            log.info("Da gui yeu cau hoan tien thanh cong cho bookingId={} voi so tien: {}", bookingId, amount);
             return true;
         } catch (Exception ex) {
             log.error("Khong the yeu cau hoan tien sang Payment Service cho bookingId={}: {}", bookingId, ex.getMessage());

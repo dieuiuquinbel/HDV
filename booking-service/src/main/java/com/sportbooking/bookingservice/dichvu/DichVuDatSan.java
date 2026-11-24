@@ -127,6 +127,12 @@ public class DichVuDatSan {
                     .build());
         }
 
+        // 6. Cong tien dich vu kem theo (Addon Services) neu co
+        BigDecimal tienDichVu = (yeuCau.getAddonAmount() != null && yeuCau.getAddonAmount().compareTo(BigDecimal.ZERO) > 0)
+                ? yeuCau.getAddonAmount()
+                : BigDecimal.ZERO;
+        tongTien = tongTien.add(tienDichVu);
+
         // 6.1. Xu ly ma uu dai giam gia (Voucher) neu co bang ham dung chung
         BigDecimal giamGia = BigDecimal.ZERO;
         if (yeuCau.getVoucherCode() != null && !yeuCau.getVoucherCode().trim().isEmpty()) {
@@ -349,18 +355,39 @@ public class DichVuDatSan {
 
         if (wasConfirmed) {
             LocalDateTime startDt = LocalDateTime.of(booking.getBookingDate(), booking.getStartSlot());
-            // Kiem tra neu huy truoc gio choi tren 24 tieng thi tien hanh hoan tien
-            if (Instant.now().plus(Duration.ofHours(24)).isBefore(startDt.atZone(ZONE_VN).toInstant())) {
+            Instant startInstant = startDt.atZone(ZONE_VN).toInstant();
+            Instant now = Instant.now();
+
+            if (!now.isBefore(startInstant)) {
+                throw new LoiNghiepVu(HttpStatus.CONFLICT, "BOOKING_ALREADY_STARTED", "Giờ thi đấu đã bắt đầu, không thể thực hiện hủy sân.");
+            }
+
+            // Quy chuẩn thực tế (Time-window Policy):
+            // - Trước >= 24 giờ: Hoàn 100%
+            // - Từ 12 giờ đến 24 giờ: Hoàn 50%
+            // - Dưới 12 giờ hoặc đã qua giờ bắt đầu (No-show): Hoàn 0%
+            long minutesUntilStart = Duration.between(now, startInstant).toMinutes();
+            boolean hoan100 = minutesUntilStart >= 24 * 60;
+            boolean hoan50 = !hoan100 && minutesUntilStart >= 12 * 60;
+
+            if (hoan100 || hoan50) {
+                BigDecimal tiLeHoan = hoan100 ? BigDecimal.ONE : new BigDecimal("0.50");
+                BigDecimal soTienHoan = booking.getTotalAmount().multiply(tiLeHoan).setScale(0, java.math.RoundingMode.HALF_UP);
+                String moTaTiLe = hoan100 ? "100%" : "50%";
+                String lyDoHoan = hoan100 ? "Hủy đơn trước >= 24 giờ (hoàn 100%)" : "Hủy đơn từ 12-24 giờ (hoàn 50%)";
+
                 booking.setStatus(TrangThaiDonDat.REFUND_PENDING);
                 booking = khoDonDatSan.save(booking);
 
-                // Goi sang payment service thuc hien refund
-                boolean hoanTienOk = dichVuGoiThanhToanNoiBo.yeuCauHoanTien(bookingId, "Huy don hop le truoc 24 gio");
+                // Goi sang payment service thuc hien refund vao Vi ESportKing
+                boolean hoanTienOk = dichVuGoiThanhToanNoiBo.yeuCauHoanTien(bookingId, soTienHoan, lyDoHoan);
                 if (hoanTienOk) {
                     booking.setStatus(TrangThaiDonDat.CANCELLED_REFUNDED);
+                    String thongBaoMsg = String.format("Đơn đặt sân #%d đã được hủy thành công. Số tiền hoàn %s (%,d đ) đã được cộng thẳng vào Ví ESportKing của bạn.",
+                            bookingId, moTaTiLe, soTienHoan.longValue());
                     dichVuGoiThongBaoNoiBo.guiThongBao(booking.getCustomerId(),
-                            "Hủy đơn đặt sân #" + bookingId + " & Hoàn tiền",
-                            "Đơn đặt sân #" + bookingId + " đã được hủy thành công và hoàn 100% số tiền vào tài khoản.",
+                            "Hủy đơn đặt sân #" + bookingId + " & Hoàn tiền (" + moTaTiLe + ")",
+                            thongBaoMsg,
                             "BOOKING_REFUNDED",
                             bookingId);
                 } else {
@@ -368,10 +395,13 @@ public class DichVuDatSan {
                     log.error("Goi hoan tien payment that bai cho bookingId={}, giu REFUND_PENDING", bookingId);
                 }
             } else {
+                // Duoi 12 gio: Hoan 0% (Huy sat gio - phi giu cho 100%)
                 booking.setStatus(TrangThaiDonDat.CANCELLED);
+                String thongBaoMsg = String.format("Đơn đặt sân #%d đã được hủy thành công. Do thời gian hủy dưới 12 giờ trước giờ thi đấu, đơn không đủ điều kiện hoàn tiền theo quy định.",
+                        bookingId);
                 dichVuGoiThongBaoNoiBo.guiThongBao(booking.getCustomerId(),
-                        "Hủy đơn đặt sân #" + bookingId,
-                        "Đơn đặt sân #" + bookingId + " đã được hủy thành công (không hoàn tiền do thời gian hủy dưới 24 giờ trước giờ thi đấu).",
+                        "Hủy đơn đặt sân #" + bookingId + " (Không hoàn tiền)",
+                        thongBaoMsg,
                         "BOOKING_CANCELLED",
                         bookingId);
             }
@@ -436,23 +466,29 @@ public class DichVuDatSan {
             throw new LoiNghiepVu(HttpStatus.CONFLICT, "BOOKING_NOT_PAYABLE", "Don dat da qua thoi gian thanh toan");
         }
 
-        // Xac nhan thanh cong trong transaction
-        transactionTemplate.execute(status -> {
+        // Xac nhan thanh cong trong transaction co dieu kien trang thai
+        Boolean capNhatOk = transactionTemplate.execute(status -> {
             DonDatSan b = khoDonDatSan.findById(bookingId).orElse(null);
             if (b != null && b.getStatus() == TrangThaiDonDat.PENDING_PAYMENT) {
                 b.setStatus(TrangThaiDonDat.CONFIRMED);
                 khoDonDatSan.save(b);
+                return true;
             }
-            return null;
+            return false;
         });
-        log.info("Xac nhan thanh toan thanh cong cho don dat {} voi paymentId {}", bookingId, yeuCau.getPaymentId());
 
-        // Gui thong bao da xac nhan thanh toan sau khi da commit thanh cong vao DB
-        dichVuGoiThongBaoNoiBo.guiThongBao(booking.getCustomerId(),
-                "Thanh toán thành công đơn đặt #" + bookingId,
-                "Đơn đặt sân ngày " + booking.getBookingDate() + " từ " + booking.getStartSlot() + " đến " + booking.getEndSlot() + " đã được xác nhận thanh toán thành công.",
-                "PAYMENT_SUCCESS",
-                bookingId);
+        if (Boolean.TRUE.equals(capNhatOk)) {
+            log.info("Xac nhan thanh toan thanh cong cho don dat {} voi paymentId {}", bookingId, yeuCau.getPaymentId());
+            // Gui thong bao da xac nhan thanh toan sau khi da commit thanh cong vao DB
+            dichVuGoiThongBaoNoiBo.guiThongBao(booking.getCustomerId(),
+                    "Thanh toán thành công đơn đặt #" + bookingId,
+                    "Đơn đặt sân ngày " + booking.getBookingDate() + " từ " + booking.getStartSlot() + " đến " + booking.getEndSlot() + " đã được xác nhận thanh toán thành công.",
+                    "PAYMENT_SUCCESS",
+                    bookingId);
+        } else {
+            log.warn("Don dat {} khong con o trang thai PENDING_PAYMENT, bo qua xac nhan", bookingId);
+            throw new LoiNghiepVu(HttpStatus.CONFLICT, "BOOKING_NOT_PAYABLE", "Đơn đặt sân không còn ở trạng thái chờ thanh toán.");
+        }
     }
 
     @Transactional(readOnly = true)
@@ -496,15 +532,19 @@ public class DichVuDatSan {
                     .build());
         }
 
+        BigDecimal tienDichVu = (yeuCau.getAddonAmount() != null && yeuCau.getAddonAmount().compareTo(BigDecimal.ZERO) > 0)
+                ? yeuCau.getAddonAmount()
+                : BigDecimal.ZERO;
+
         BigDecimal giamGia = BigDecimal.ZERO;
         if (yeuCau.getVoucherCode() != null && !yeuCau.getVoucherCode().trim().isEmpty()) {
             Optional<MaUuDai> voucherOpt = khoMaUuDai.findByCodeIgnoreCaseAndActiveTrue(yeuCau.getVoucherCode().trim());
             if (voucherOpt.isPresent()) {
-                giamGia = tinhTienGiamVoucher(voucherOpt.get(), tongTien);
+                giamGia = tinhTienGiamVoucher(voucherOpt.get(), tongTien.add(tienDichVu));
             }
         }
 
-        BigDecimal finalPrice = tongTien.subtract(giamGia).max(BigDecimal.ZERO);
+        BigDecimal finalPrice = tongTien.add(tienDichVu).subtract(giamGia).max(BigDecimal.ZERO);
         LocalTime endSlot = startSlot.plusMinutes(durationMinutes);
 
         return com.sportbooking.bookingservice.dulieu.TraVeBaoGiaDatSan.builder()
@@ -518,6 +558,8 @@ public class DichVuDatSan {
                 .durationMinutes(durationMinutes)
                 .basePrice(config.getBasePrice())
                 .totalCourtPrice(tongTien)
+                .addonAmount(tienDichVu)
+                .addonSummary(yeuCau.getAddonSummary())
                 .voucherCode(yeuCau.getVoucherCode())
                 .discountAmount(giamGia)
                 .finalAmount(finalPrice)

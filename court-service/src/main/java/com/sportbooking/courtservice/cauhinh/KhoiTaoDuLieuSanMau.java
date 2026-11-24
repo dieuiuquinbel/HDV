@@ -198,7 +198,7 @@ public class KhoiTaoDuLieuSanMau implements CommandLineRunner {
                         .map(LoaiHinhSanCatalog::getId)
                         .orElse(1L));
 
-        Optional<SanCon> existing = khoSanCon.findByCourtCode(courtCode);
+        Optional<SanCon> existing = khoSanCon.findFirstByCourtCode(courtCode);
         if (existing.isEmpty()) {
             existing = khoSanCon.findByVenueIdAndName(venueId, name);
         }
