@@ -74,7 +74,7 @@ export default function App() {
       console.error(e);
     }
     capNhatNguoiDung(null);
-    window.location.href = '/login';
+    window.location.href = '/';
   };
 
   if (dangKhoiDong) {
@@ -125,18 +125,53 @@ export default function App() {
             {/* Dashboard ca nhan (/me - Tab "Toi") */}
             <Route path="/me" element={<TrangHoSoCaNhan user={nguoiDung} onDangXuat={xuLyDangXuat} />} />
 
-            {/* Quet ma QR Check-in */}
-            <Route path="/checkin" element={<TrangQuetCheckIn user={nguoiDung} />} />
+            {/* Quet ma QR Check-in (chi STAFF / ADMIN / OWNER) */}
+            <Route
+              path="/checkin"
+              element={
+                ['STAFF', 'ADMIN', 'OWNER'].includes(nguoiDung?.role)
+                  ? <TrangQuetCheckIn user={nguoiDung} />
+                  : <Navigate to="/" replace />
+              }
+            />
 
             {/* Quan tri Admin & Chu san */}
-            <Route path="/admin" element={<TrangQuanTriAdmin nguoiDung={nguoiDung} />} />
-            <Route path="/quan-tri-admin" element={<TrangQuanTriAdmin nguoiDung={nguoiDung} />} />
-            <Route path="/owner" element={<TrangQuanLySanChu nguoiDung={nguoiDung} />} />
-            <Route path="/quan-ly-san" element={<TrangQuanLySanChu nguoiDung={nguoiDung} />} />
+            <Route
+              path="/admin"
+              element={
+                nguoiDung?.role === 'ADMIN'
+                  ? <TrangQuanTriAdmin nguoiDung={nguoiDung} />
+                  : <Navigate to="/" replace />
+              }
+            />
+            <Route
+              path="/quan-tri-admin"
+              element={
+                nguoiDung?.role === 'ADMIN'
+                  ? <TrangQuanTriAdmin nguoiDung={nguoiDung} />
+                  : <Navigate to="/" replace />
+              }
+            />
+            <Route
+              path="/owner"
+              element={
+                ['OWNER', 'ADMIN'].includes(nguoiDung?.role)
+                  ? <TrangQuanLySanChu nguoiDung={nguoiDung} />
+                  : <Navigate to="/" replace />
+              }
+            />
+            <Route
+              path="/quan-ly-san"
+              element={
+                ['OWNER', 'ADMIN'].includes(nguoiDung?.role)
+                  ? <TrangQuanLySanChu nguoiDung={nguoiDung} />
+                  : <Navigate to="/" replace />
+              }
+            />
           </Routes>
         </main>
-        {/* Nut noi Kiosk tiep te do an & nuoc uong FAB toan he thong */}
-        <NutGoiDichVuFAB user={nguoiDung} />
+        {/* Nut noi Kiosk tiep te do an & nuoc uong FAB (chi hien thi cho khach hang) */}
+        {(!nguoiDung || nguoiDung.role === 'CUSTOMER') && <NutGoiDichVuFAB user={nguoiDung} />}
       </div>
     </BrowserRouter>
   );

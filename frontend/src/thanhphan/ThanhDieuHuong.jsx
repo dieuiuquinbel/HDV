@@ -12,6 +12,7 @@ import {
   QrCode, 
   User, 
   Bell, 
+  BellRing,
   Coins, 
   LogOut, 
   Shield, 
@@ -86,6 +87,7 @@ export default function ThanhDieuHuong({ user, onDangXuat }) {
   const navigate = useNavigate();
   const [soThongBaoChuaDoc, setSoThongBaoChuaDoc] = useState(0);
   const [soVeChuaQuet, setSoVeChuaQuet] = useState(0);
+  const [soYeuCauDangCho, setSoYeuCauDangCho] = useState(0);
   const [tabThongBao, setTabThongBao] = useState('ALL');
   const [menuMoRong, setMenuMoRong] = useState(false);
   const [hienPopupThongBao, setHienPopupThongBao] = useState(false);
@@ -97,9 +99,9 @@ export default function ThanhDieuHuong({ user, onDangXuat }) {
   const dropdownAvatarRef = useRef(null);
   const dropdownThongBaoRef = useRef(null);
 
-  // Tải thông tin số dư Ví SportPay
+  // Tải thông tin số dư Ví SportPay (chỉ dành cho Khách hàng)
   const taiSoDuVi = async () => {
-    if (!user) return;
+    if (!user || user.role !== 'CUSTOMER') return;
     try {
       const res = await apiDichVu.layThongTinVi();
       if (res.data?.balance !== undefined) {
@@ -107,6 +109,26 @@ export default function ThanhDieuHuong({ user, onDangXuat }) {
       }
     } catch (e) {
       // Vi chua khoi tao hoac offline
+    }
+  };
+
+  // Tải số lượng yêu cầu phục vụ đang chờ (chỉ dành cho Nhân viên trực quầy)
+  const taiSoYeuCauDangCho = async () => {
+    if (!user || user.role !== 'STAFF') {
+      setSoYeuCauDangCho(0);
+      return;
+    }
+    try {
+      let venueId = Number(localStorage.getItem('esportking_active_station') || 1);
+      if (user.email?.includes('cs1')) venueId = 1;
+      else if (user.email?.includes('cs2')) venueId = 2;
+      else if (user.email?.includes('cs3')) venueId = 3;
+      const res = await apiDichVu.layDanhSachYeuCauDichVu({ venueId });
+      if (Array.isArray(res?.data)) {
+        setSoYeuCauDangCho(res.data.filter(r => r.status === 'PENDING').length);
+      }
+    } catch (e) {
+      // Bo qua neu tam mat ket noi
     }
   };
 
@@ -196,20 +218,31 @@ export default function ThanhDieuHuong({ user, onDangXuat }) {
     taiThongBao();
     taiSoVeChuaQuet();
     taiSoDuVi();
+    taiSoYeuCauDangCho();
 
-    // Lắng nghe sự kiện cập nhật thông báo & vé & ví
+    // Lắng nghe sự kiện cập nhật thông báo & vé & ví & yêu cầu phục vụ
     const handleCapNhat = () => {
       taiThongBao();
       taiSoVeChuaQuet();
       taiSoDuVi();
+      taiSoYeuCauDangCho();
+    };
+    const handleCapNhatSoYeuCau = (event) => {
+      if (typeof event?.detail === 'number') {
+        setSoYeuCauDangCho(event.detail);
+      } else {
+        taiSoYeuCauDangCho();
+      }
     };
     window.addEventListener('cap_nhat_thong_bao', handleCapNhat);
     window.addEventListener('cap_nhat_ve', handleCapNhat);
     window.addEventListener('cap_nhat_so_du_vi', handleCapNhat);
+    window.addEventListener('cap_nhat_so_yeu_cau', handleCapNhatSoYeuCau);
     return () => {
       window.removeEventListener('cap_nhat_thong_bao', handleCapNhat);
       window.removeEventListener('cap_nhat_ve', handleCapNhat);
       window.removeEventListener('cap_nhat_so_du_vi', handleCapNhat);
+      window.removeEventListener('cap_nhat_so_yeu_cau', handleCapNhatSoYeuCau);
     };
   }, [user]);
 
@@ -266,9 +299,17 @@ export default function ThanhDieuHuong({ user, onDangXuat }) {
       { to: '/tim-san', label: 'Tìm sân (3 Cơ sở)', icon: Search }
     );
   } else if (user.role === 'STAFF') {
-    // 2. Nhân viên trực quầy (Tập trung 100% vào nghiệp vụ đón khách & check-in ca chơi)
+    // 2. Nhân viên trực quầy (2 tab thống nhất trên Header: Check-in & Lịch Sân + Yêu Cầu Phục Vụ)
     navItems.push(
-      { to: '/checkin', label: 'Trạm Check-In QR', icon: QrCode }
+      { to: '/checkin?tab=checkin', label: 'Check-in & Lịch Sân', icon: QrCode },
+      {
+        to: '/checkin?tab=requests',
+        label: 'Yêu Cầu Phục Vụ',
+        icon: BellRing,
+        badgeDot: soYeuCauDangCho > 0,
+        count: soYeuCauDangCho,
+        showCount: true
+      }
     );
   } else if (user.role === 'ADMIN') {
     // 3. Quản trị viên Admin (Đúng 2 tab: Trạm Check-In & Quản trị Admin)
@@ -301,6 +342,14 @@ export default function ThanhDieuHuong({ user, onDangXuat }) {
   }
 
   const laDuongDanHienTai = (path) => {
+    const searchParams = new URLSearchParams(location.search);
+    const currentTab = searchParams.get('tab') || 'checkin';
+    if (path === '/checkin?tab=checkin') {
+      return location.pathname === '/checkin' && currentTab !== 'requests';
+    }
+    if (path === '/checkin?tab=requests') {
+      return location.pathname === '/checkin' && currentTab === 'requests';
+    }
     if (path === '/' && location.pathname === '/') return true;
     if (path.startsWith('/tim-san') && (location.pathname === '/tim-san' || location.pathname === '/tim-kiem')) {
       return true;
@@ -360,7 +409,13 @@ export default function ThanhDieuHuong({ user, onDangXuat }) {
                 >
                   <Icon className={`w-4 h-4 ${active ? 'text-white' : 'text-slate-400'}`} />
                   <span>{item.label}</span>
-                  {item.badgeDot && (
+                  {item.showCount && item.count > 0 ? (
+                    <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-black leading-none ${
+                      active ? 'bg-white text-rose-600' : 'bg-rose-600 text-white animate-pulse'
+                    }`}>
+                      {item.count}
+                    </span>
+                  ) : item.badgeDot && (
                     <span className="relative flex h-2.5 w-2.5 ml-0.5">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
                       <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500"></span>
@@ -374,8 +429,8 @@ export default function ThanhDieuHuong({ user, onDangXuat }) {
           {/* Tien ich ben phai */}
           <div className="flex items-center gap-3">
             
-            {/* Vi Dien Tu SportPay */}
-            {user && (
+            {/* Vi Dien Tu SportPay (chi hien thi cho Khach Hang) */}
+            {user && user.role === 'CUSTOMER' && (
               <button
                 onClick={() => setHienModalVi(true)}
                 className="hidden sm:flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-amber-50 to-orange-50 hover:from-amber-100 hover:to-orange-100 border border-amber-200/80 text-amber-900 transition cursor-pointer shadow-sm group"
@@ -539,11 +594,13 @@ export default function ThanhDieuHuong({ user, onDangXuat }) {
                       <div className="flex-1 min-w-0 text-left">
                         <p className="text-sm font-bold text-slate-900 truncate">{user.fullName || 'Người dùng'}</p>
                         <p className="text-xs text-slate-400 truncate">{user.email || ''}</p>
-                        <div className="mt-1 flex items-center gap-1.5">
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200/60">
-                            <Coins className="w-2.5 h-2.5 text-amber-500" /> 250 xu tích lũy
-                          </span>
-                        </div>
+                        {user.role === 'CUSTOMER' && (
+                          <div className="mt-1 flex items-center gap-1.5">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200/60">
+                              <Coins className="w-2.5 h-2.5 text-amber-500" /> 250 xu tích lũy
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -558,45 +615,49 @@ export default function ThanhDieuHuong({ user, onDangXuat }) {
                           <span>Tài khoản của tôi</span>
                         </Link>
 
-                        <Link
-                          to="/ve-cua-toi"
-                          onClick={() => setHienDropdownAvatar(false)}
-                          className="flex items-center gap-3 px-4 py-2.5 text-slate-700 hover:bg-slate-50 hover:text-brand-600 transition font-medium"
-                        >
-                          <Ticket className="w-4 h-4 text-slate-400" />
-                          <span>Đặt sân & Lịch của tôi</span>
-                          {soVeChuaQuet > 0 && (
-                            <span className="ml-auto px-2 py-0.5 rounded-full bg-rose-500 text-white text-[10px] font-black">
-                              {soVeChuaQuet}
-                            </span>
-                          )}
-                        </Link>
+                        {user.role === 'CUSTOMER' && (
+                          <>
+                            <Link
+                              to="/ve-cua-toi"
+                              onClick={() => setHienDropdownAvatar(false)}
+                              className="flex items-center gap-3 px-4 py-2.5 text-slate-700 hover:bg-slate-50 hover:text-brand-600 transition font-medium"
+                            >
+                              <Ticket className="w-4 h-4 text-slate-400" />
+                              <span>Đặt sân & Lịch của tôi</span>
+                              {soVeChuaQuet > 0 && (
+                                <span className="ml-auto px-2 py-0.5 rounded-full bg-rose-500 text-white text-[10px] font-black">
+                                  {soVeChuaQuet}
+                                </span>
+                              )}
+                            </Link>
 
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setHienDropdownAvatar(false);
-                            setHienModalVi(true);
-                          }}
-                          className="w-full flex items-center gap-3 px-4 py-2.5 text-slate-700 hover:bg-slate-50 hover:text-brand-600 transition font-medium text-left cursor-pointer"
-                        >
-                          <Wallet className="w-4 h-4 text-amber-500" />
-                          <span>Ví SportPay & Rút tiền NH</span>
-                          <span className="ml-auto text-xs font-black text-amber-600">{soDuVi.toLocaleString('vi-VN')} đ</span>
-                        </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setHienDropdownAvatar(false);
+                                setHienModalVi(true);
+                              }}
+                              className="w-full flex items-center gap-3 px-4 py-2.5 text-slate-700 hover:bg-slate-50 hover:text-brand-600 transition font-medium text-left cursor-pointer"
+                            >
+                              <Wallet className="w-4 h-4 text-amber-500" />
+                              <span>Ví SportPay & Rút tiền NH</span>
+                              <span className="ml-auto text-xs font-black text-amber-600">{soDuVi.toLocaleString('vi-VN')} đ</span>
+                            </button>
 
-                        <Link
-                          to="/me?tab=vouchers"
-                          onClick={() => setHienDropdownAvatar(false)}
-                          className="flex items-center gap-3 px-4 py-2.5 text-slate-700 hover:bg-slate-50 hover:text-brand-600 transition font-medium"
-                        >
-                          <Ticket className="w-4 h-4 text-slate-400" />
-                          <span>Ví Voucher & Ưu đãi</span>
-                        </Link>
+                            <Link
+                              to="/me?tab=vouchers"
+                              onClick={() => setHienDropdownAvatar(false)}
+                              className="flex items-center gap-3 px-4 py-2.5 text-slate-700 hover:bg-slate-50 hover:text-brand-600 transition font-medium"
+                            >
+                              <Ticket className="w-4 h-4 text-slate-400" />
+                              <span>Ví Voucher & Ưu đãi</span>
+                            </Link>
+                          </>
+                        )}
 
                         {(user.role === 'STAFF' || user.role === 'ADMIN') && (
                           <Link
-                            to="/checkin"
+                            to="/checkin?tab=checkin"
                             onClick={() => setHienDropdownAvatar(false)}
                             className="flex items-center gap-3 px-4 py-2.5 text-brand-600 hover:bg-brand-50 transition font-bold"
                           >
@@ -680,13 +741,15 @@ export default function ThanhDieuHuong({ user, onDangXuat }) {
         </div>
       )}
 
-      {/* Modal Vi Dien Tu SportPay */}
-      <ModalViDienTu 
-        hienThi={hienModalVi} 
-        onDong={() => setHienModalVi(false)} 
-        user={user} 
-        onSoDuThayDoi={setSoDuVi} 
-      />
+      {/* Modal Vi Dien Tu SportPay (chi danh cho Khach Hang) */}
+      {user && user.role === 'CUSTOMER' && (
+        <ModalViDienTu 
+          hienThi={hienModalVi} 
+          onDong={() => setHienModalVi(false)} 
+          user={user} 
+          onSoDuThayDoi={setSoDuVi} 
+        />
+      )}
     </header>
   );
 }

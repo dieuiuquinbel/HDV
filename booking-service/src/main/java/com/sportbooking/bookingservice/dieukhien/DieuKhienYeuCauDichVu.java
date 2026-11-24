@@ -102,12 +102,21 @@ public class DieuKhienYeuCauDichVu {
 
         // Ban thong bao cho Nhan vien truc quay co so tuong ung (CS1->userId 2, CS2->3, CS3->4) va Admin (userId 1)
         Long staffUserId = (venueId >= 1 && venueId <= 3) ? (venueId + 1) : 2L;
-        String tieuDe = "Yêu cầu phục vụ tại " + courtName;
-        String noiDung = customerName + " (Vé #" + bookingId + ") vừa gọi: " + items;
+        String tenCoSo = tenCoSoTheoId(venueId);
+        String tieuDe = "[" + tenCoSo + "] Yêu cầu phục vụ tại " + courtName;
+        String noiDung = "[" + tenCoSo + "] " + customerName + " (Vé #" + bookingId + ") vừa gọi: " + items;
         dichVuGoiThongBaoNoiBo.guiThongBao(staffUserId, tieuDe, noiDung, "SERVICE_REQUEST", req.getId());
         dichVuGoiThongBaoNoiBo.guiThongBao(1L, tieuDe, noiDung, "SERVICE_REQUEST", req.getId());
 
         return ResponseEntity.status(HttpStatus.CREATED).body(req);
+    }
+
+    private String tenCoSoTheoId(Long venueId) {
+        if (venueId == null) return "Cơ Sở 1 - Cầu Giấy";
+        if (venueId == 1L) return "Cơ Sở 1 - Cầu Giấy";
+        if (venueId == 2L) return "Cơ Sở 2 - Đống Đa";
+        if (venueId == 3L) return "Cơ Sở 3 - Hà Đông";
+        return "Cơ Sở #" + venueId;
     }
 
     @GetMapping("/service-requests")

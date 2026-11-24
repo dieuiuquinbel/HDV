@@ -490,11 +490,13 @@ public class DichVuDatSan {
             try {
                 var config = dichVuGoiSanNoiBo.layCauHinhSan(booking.getCourtId(), booking.getBookingDate());
                 Long venueId = (config != null && config.getVenueId() != null) ? config.getVenueId() : 1L;
+                String tenCoSo = tenCoSoTheoId(venueId);
                 String tenSan = (config != null && config.getCourtName() != null) ? config.getCourtName() : ("Sân #" + booking.getCourtId());
                 Long staffUserId = (venueId >= 1 && venueId <= 3) ? (venueId + 1) : 2L;
-                String staffMsg = "Đơn #" + bookingId + " tại " + tenSan + " (" + booking.getBookingDate() + " • " + booking.getStartSlot() + "-" + booking.getEndSlot() + ") đã thanh toán, sẵn sàng Check-in.";
-                dichVuGoiThongBaoNoiBo.guiThongBao(staffUserId, "Có đơn đặt sân mới #" + bookingId, staffMsg, "BOOKING_NEW", bookingId);
-                dichVuGoiThongBaoNoiBo.guiThongBao(1L, "Có đơn đặt sân mới #" + bookingId, staffMsg, "BOOKING_NEW", bookingId);
+                String staffTitle = "[" + tenCoSo + "] Đơn đặt sân mới #" + bookingId;
+                String staffMsg = "[" + tenCoSo + "] Đơn #" + bookingId + " tại " + tenSan + " (" + booking.getBookingDate() + " • " + booking.getStartSlot() + "-" + booking.getEndSlot() + ") đã thanh toán, sẵn sàng Check-in.";
+                dichVuGoiThongBaoNoiBo.guiThongBao(staffUserId, staffTitle, staffMsg, "BOOKING_NEW", bookingId);
+                dichVuGoiThongBaoNoiBo.guiThongBao(1L, staffTitle, staffMsg, "BOOKING_NEW", bookingId);
             } catch (Exception ex) {
                 log.warn("Khong the gui thong bao don moi cho nhan vien/admin: {}", ex.getMessage());
             }
@@ -502,6 +504,14 @@ public class DichVuDatSan {
             log.warn("Don dat {} khong con o trang thai PENDING_PAYMENT, bo qua xac nhan", bookingId);
             throw new LoiNghiepVu(HttpStatus.CONFLICT, "BOOKING_NOT_PAYABLE", "Đơn đặt sân không còn ở trạng thái chờ thanh toán.");
         }
+    }
+
+    private String tenCoSoTheoId(Long venueId) {
+        if (venueId == null) return "Cơ Sở 1 - Cầu Giấy";
+        if (venueId == 1L) return "Cơ Sở 1 - Cầu Giấy";
+        if (venueId == 2L) return "Cơ Sở 2 - Đống Đa";
+        if (venueId == 3L) return "Cơ Sở 3 - Hà Đông";
+        return "Cơ Sở #" + venueId;
     }
 
     @Transactional(readOnly = true)

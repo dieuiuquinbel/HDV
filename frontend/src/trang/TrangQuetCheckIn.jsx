@@ -7,6 +7,7 @@
  * 3. Bang dieu phoi dich vu tai san (In-Court Service Dispatcher): Nhan vien tiep nhan yeu cau goi nuoc, goi nguoi nhat bong Tennis voi dong ho do thoi gian dap ung (SLA).
  */
 import React, { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { motion as Motion } from 'framer-motion';
 import jsQR from 'jsqr';
 import { 
@@ -28,7 +29,8 @@ import {
   CheckCircle, 
   Flag, 
   UserCheck, 
-  RefreshCw 
+  RefreshCw,
+  Lock
 } from 'lucide-react';
 import { apiDichVu } from '../dichvu/api';
 
@@ -91,7 +93,12 @@ export default function TrangQuetCheckIn({ user }) {
   const [timKiemDon, setTimKiemDon] = useState('');
   const [dangTaiDon, setDangTaiDon] = useState(false);
   const [traSanMsg, setTraSanMsg] = useState('');
-  const [tabTram, setTabTram] = useState('CHECKIN'); // 'CHECKIN' | 'YEU_CAU'
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabTram = searchParams.get('tab') === 'requests' ? 'YEU_CAU' : 'CHECKIN';
+  const chuyenTab = (tab) => {
+    setSearchParams({ tab: tab === 'YEU_CAU' ? 'requests' : 'checkin' }, { replace: true });
+  };
+  const laNhanVienCoSo = user?.role === 'STAFF';
   const [boLocNgay, setBoLocNgay] = useState('UPCOMING'); // 'UPCOMING' | 'TODAY' | 'TOMORROW'
 
   const videoRef = useRef(null);
@@ -116,6 +123,7 @@ export default function TrangQuetCheckIn({ user }) {
         }
         prevPendingCountRef.current = pendingCount;
         setDanhSachDichVu(res.data);
+        window.dispatchEvent(new CustomEvent('cap_nhat_so_yeu_cau', { detail: pendingCount }));
       }
     } catch (e) {
       console.warn('Khong the tai yeu cau dich vu:', e);
@@ -349,73 +357,83 @@ export default function TrangQuetCheckIn({ user }) {
           </div>
 
           <div className="flex items-center gap-2 w-full md:w-auto">
-            <span className="text-xs font-bold text-slate-500 whitespace-nowrap hidden sm:inline">Đổi cơ sở trực:</span>
-            <select
-              value={stationVenueId}
-              onChange={(e) => {
-                setStationVenueId(Number(e.target.value));
-                setKetQua(null);
-                setLoi('');
-              }}
-              className="w-full md:w-auto px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:bg-white focus:border-brand-500 outline-none transition cursor-pointer shadow-inner"
-            >
-              {DANH_SACH_CO_SO.map(cs => (
-                <option key={cs.id} value={cs.id}>
-                  🏢 {cs.name}
-                </option>
-              ))}
-            </select>
-
+            {laNhanVienCoSo ? (
+              <div className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-xs font-black text-emerald-800 shadow-xs">
+                <Lock className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                <span>Phụ trách cố định: {coSoHienTai.name}</span>
+              </div>
+            ) : (
+              <>
+                <span className="text-xs font-bold text-slate-500 whitespace-nowrap hidden sm:inline">Đổi cơ sở trực:</span>
+                <select
+                  value={stationVenueId}
+                  onChange={(e) => {
+                    setStationVenueId(Number(e.target.value));
+                    setKetQua(null);
+                    setLoi('');
+                  }}
+                  className="w-full md:w-auto px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:bg-white focus:border-brand-500 outline-none transition cursor-pointer shadow-inner"
+                >
+                  {DANH_SACH_CO_SO.map(cs => (
+                    <option key={cs.id} value={cs.id}>
+                      🏢 {cs.name}
+                    </option>
+                  ))}
+                </select>
+              </>
+            )}
           </div>
         </div>
 
-        {/* THANH CHUYEN 2 TAB CHINH CUA NHAN VIEN: TAB 1 (CHECK-IN & LICH SAN) | TAB 2 (YEU CAU PHUC VU) */}
-        <div className="grid grid-cols-2 gap-3 bg-white p-2 rounded-2xl border border-slate-200/80 shadow-xs">
-          <button
-            type="button"
-            onClick={() => setTabTram('CHECKIN')}
-            className={`py-3 px-4 rounded-xl text-xs sm:text-sm font-black transition flex items-center justify-center gap-2 cursor-pointer ${
-              tabTram === 'CHECKIN'
-                ? 'bg-brand-600 text-white shadow-md shadow-brand-500/25'
-                : 'text-slate-600 hover:bg-slate-50'
-            }`}
-          >
-            <QrCode className="w-4 h-4" />
-            <span>Check-in & Lịch Sân</span>
-            <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
-              tabTram === 'CHECKIN' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'
-            }`}>
-              {danhSachDonHomNay.length}
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              setTabTram('YEU_CAU');
-              taiYeuCauDichVu();
-            }}
-            className={`py-3 px-4 rounded-xl text-xs sm:text-sm font-black transition flex items-center justify-center gap-2 cursor-pointer ${
-              tabTram === 'YEU_CAU'
-                ? 'bg-amber-500 text-white shadow-md shadow-amber-500/25'
-                : 'text-slate-600 hover:bg-slate-50'
-            }`}
-          >
-            <BellRing className="w-4 h-4" />
-            <span>Yêu Cầu Phục Vụ Tại Sân</span>
-            {soYeuCauDangCho > 0 ? (
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-600 text-white animate-pulse">
-                {soYeuCauDangCho} mới
-              </span>
-            ) : (
+        {/* THANH CHUYEN 2 TAB CHI HIEN THI CHO ADMIN/OWNER (STAFF DA CO SAN 2 TAB TREN HEADER) */}
+        {!laNhanVienCoSo && (
+          <div className="grid grid-cols-2 gap-3 bg-white p-2 rounded-2xl border border-slate-200/80 shadow-xs">
+            <button
+              type="button"
+              onClick={() => chuyenTab('CHECKIN')}
+              className={`py-3 px-4 rounded-xl text-xs sm:text-sm font-black transition flex items-center justify-center gap-2 cursor-pointer ${
+                tabTram === 'CHECKIN'
+                  ? 'bg-brand-600 text-white shadow-md shadow-brand-500/25'
+                  : 'text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              <QrCode className="w-4 h-4" />
+              <span>Check-in & Lịch Sân</span>
               <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
-                tabTram === 'YEU_CAU' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
+                tabTram === 'CHECKIN' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'
               }`}>
-                0
+                {danhSachDonHomNay.length}
               </span>
-            )}
-          </button>
-        </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                chuyenTab('YEU_CAU');
+                taiYeuCauDichVu();
+              }}
+              className={`py-3 px-4 rounded-xl text-xs sm:text-sm font-black transition flex items-center justify-center gap-2 cursor-pointer ${
+                tabTram === 'YEU_CAU'
+                  ? 'bg-amber-500 text-white shadow-md shadow-amber-500/25'
+                  : 'text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              <BellRing className="w-4 h-4" />
+              <span>Yêu Cầu Phục Vụ Tại Sân</span>
+              {soYeuCauDangCho > 0 ? (
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-600 text-white animate-pulse">
+                  {soYeuCauDangCho} mới
+                </span>
+              ) : (
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                  tabTram === 'YEU_CAU' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
+                }`}>
+                  0
+                </span>
+              )}
+            </button>
+          </div>
+        )}
 
         {/* ================= TAB 1: CHECK-IN QR & LỊCH ĐẶT SÂN ================= */}
         {tabTram === 'CHECKIN' && (
