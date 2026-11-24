@@ -591,7 +591,7 @@ export default function TrangChu({ user }) {
       {/* =========================================================================
           1.5. DẢI CHỈ SỐ UY TÍN (TRUST STATS STRIP)
          ========================================================================= */}
-      <section className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-20 ${user ? 'mt-5' : '-mt-7'}`}>
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-20 -mt-7">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           {[
             { icon: '🏟️', value: '30 Sân', label: 'Chuẩn thi đấu FIFA, BWF, FIBA' },
@@ -619,7 +619,7 @@ export default function TrangChu({ user }) {
           2. DASHBOARD WIDGET CA NHAN (Khi nguoi dung da dang nhap)
          ========================================================================= */}
       {user && (
-        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-8 relative z-20">
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-5 relative z-20">
           <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/80 shadow-lg shadow-slate-900/5 flex flex-col md:flex-row items-center justify-between gap-4">
             
             <div className="flex items-center gap-4 text-left w-full md:w-auto">
