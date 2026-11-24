@@ -26,6 +26,7 @@ import {
   Award,
   Coins,
   Ticket,
+  ChevronLeft,
   ChevronRight,
   ExternalLink,
   Gift,
@@ -33,7 +34,9 @@ import {
   X,
   Phone,
   Mail,
-  Share2
+  Share2,
+  Star,
+  Quote
 } from 'lucide-react';
 import { apiDichVu } from '../dichvu/api';
 
@@ -41,35 +44,111 @@ import { apiDichVu } from '../dichvu/api';
 const SLIDES_HERO = [
   {
     id: 1,
-    url: 'https://images.unsplash.com/photo-1546519638-68e109498ffc?q=80&w=2000&auto=format&fit=crop',
-    tag: 'NỀN TẢNG ĐẶT SÂN SỐ 1 VIỆT NAM',
+    url: '/images/courts/football/football_5_cs2.jpg',
+    tag: 'HỆ THỐNG ĐẶT SÂN SỐ 1 HÀ NỘI',
     title: 'Đặt Sân Thể Thao',
     highlight: 'Nhanh Chóng & Giữ Chỗ Tức Thì',
-    desc: 'Tìm và đặt lịch sân Cầu lông, Bóng đá, Pickleball và Tennis quanh khu vực của bạn chỉ trong 30 giây mà không lo trùng giờ.'
+    desc: 'Tìm và đặt lịch sân Bóng đá, Cầu lông, Bóng rổ và Tennis tại 3 cơ sở ESportKing Hà Nội chỉ trong 30 giây mà không lo trùng giờ.'
   },
   {
     id: 2,
-    url: 'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?q=80&w=2000&auto=format&fit=crop',
-    tag: 'CẦU LÔNG ĐẠT CHUẨN QUỐC TẾ',
+    url: '/images/courts/badminton/badminton_pvc_cs2.jpg',
+    tag: 'CẦU LÔNG ĐẠT CHUẨN BWF',
     title: 'Trải Nghiệm Đỉnh Cao',
-    highlight: 'Thảm BWF Êm Ái & Ánh Sáng Chống Chói',
-    desc: 'Khung giờ vàng 18:00 - 21:00 mở đặt trước mỗi ngày. Áp ngay voucher giảm 20% khi đặt sân hôm nay!'
+    highlight: 'Thảm PVC Êm Ái & Ánh Sáng Chống Chói',
+    desc: 'Khung giờ vàng 17:00 - 21:00 mở đặt trước mỗi ngày. Áp ngay voucher giảm 20% khi đặt sân hôm nay!'
   },
   {
     id: 3,
-    url: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?q=80&w=2000&auto=format&fit=crop',
-    tag: 'BÓNG ĐÁ CỎ NHÂN TẠO FIFA',
+    url: '/images/courts/football/football_5_cs1.jpg',
+    tag: 'BÓNG ĐÁ CỎ NHÂN TẠO FIFA PRO',
     title: 'Bùng Nổ Đam Mê Sân Cỏ',
-    highlight: 'Giao Lưu Kịch Tính Sân 5 & Sân 7 Người',
-    desc: 'Hệ thống 3 cơ sở thể thao ESportKing trải khắp Hà Nội (Cầu Giấy, Đống Đa, Long Biên), kết nối các trận giao hữu cuối tuần dễ dàng.'
+    highlight: 'Giao Lưu Kịch Tính Sân 5, 7 & 11 Người',
+    desc: 'Hệ thống 3 cơ sở ESportKing trải khắp Hà Nội (Cầu Giấy • Đống Đa • Hà Đông), thanh toán 1 chạm qua Ví SportPay hoặc VietQR.'
   },
   {
     id: 4,
-    url: 'https://images.unsplash.com/photo-1554068865-24cecd4e34b8?q=80&w=2000&auto=format&fit=crop',
-    tag: 'ĐẲNG CẤP FIBA & VBA',
+    url: '/images/courts/tennis/tennis_clay_cs1.jpg',
+    tag: 'ĐẲNG CẤP FIBA & GRAND SLAM',
     title: 'Bóng Rổ & Quần Vợt',
-    highlight: 'Sàn Gỗ Chuẩn Thi Đấu Chuyên Nghiệp',
-    desc: 'Hệ thống sân bóng rổ và tennis hiện đại, trang bị mái che và sàn giảm chấn bảo vệ tối đa cho vận động viên.'
+    highlight: 'Sàn Gỗ FIBA & Mặt Sân Chuẩn Quốc Tế',
+    desc: 'Hệ thống sân bóng rổ sàn gỗ Maple và sân tennis cứng, đất nện, sân cỏ hiện đại, bảo vệ tối đa khớp chân cho vận động viên.'
+  }
+];
+
+// Danh gia thuc te tu khach hang & doi bong
+const DANH_GIA_KHACH_HANG = [
+  {
+    id: 1,
+    name: 'Nguyễn Minh Quân',
+    role: 'Đội trưởng FC Duy Tân',
+    avatarBg: 'from-rose-500 to-brand-600',
+    sport: 'FOOTBALL',
+    sportLabel: '⚽ Bóng Đá',
+    venue: 'CS1 • Cầu Giấy',
+    rating: 5,
+    time: '2 ngày trước',
+    content: 'Đặt sân 7 cỏ FIFA Pro ở CS1 cực nhanh, khóa slot realtime không lo trùng kèo. Đèn LED tối sáng rõ, có sẵn 1 bóng và thuê thêm trọng tài trọn ca rất tiện!'
+  },
+  {
+    id: 2,
+    name: 'Trần Thảo Linh',
+    role: 'CLB Cầu Lông Đống Đa',
+    avatarBg: 'from-emerald-500 to-teal-600',
+    sport: 'BADMINTON',
+    sportLabel: '🏸 Cầu Lông',
+    venue: 'CS2 • Đống Đa',
+    rating: 5,
+    time: '4 ngày trước',
+    content: 'Thảm PVC xanh êm chân, trần cao không bị chói đèn. Thích nhất là thanh toán bằng Ví SportPay 1 chạm rồi quét mã QR vào sân mất đúng 5 giây.'
+  },
+  {
+    id: 3,
+    name: 'Lê Hoàng Nam',
+    role: 'Hội Tennis Hà Đông',
+    avatarBg: 'from-amber-500 to-orange-600',
+    sport: 'TENNIS',
+    sportLabel: '🎾 Tennis',
+    venue: 'CS3 • Hà Đông',
+    rating: 5,
+    time: '1 tuần trước',
+    content: 'Mặt sân đất nện và sân cứng Decoturf ở CS3 bảo trì rất đều, thuê thêm vợt Wilson Pro Staff và máy bắn bóng tập cuối tuần cực kỳ đáng tiền.'
+  },
+  {
+    id: 4,
+    name: 'Phạm Đức Anh',
+    role: 'Team Streetball 3x3',
+    avatarBg: 'from-blue-500 to-indigo-600',
+    sport: 'BASKETBALL',
+    sportLabel: '🏀 Bóng Rổ',
+    venue: 'CS1 • Cầu Giấy',
+    rating: 5,
+    time: '1 tuần trước',
+    content: 'Sàn gỗ 5x5 trong nhà mát rượi, bảng rổ kính cường lực chuẩn FIBA. Hôm trước đội bận đột xuất hủy trước 24h được hoàn 100% về ví ngay lập tức, quá uy tín!'
+  },
+  {
+    id: 5,
+    name: 'Vũ Quang Huy',
+    role: 'Thành viên hạng Vàng',
+    avatarBg: 'from-purple-500 to-pink-600',
+    sport: 'FOOTBALL',
+    sportLabel: '⚽ Bóng Đá',
+    venue: 'CS2 • Đống Đa',
+    rating: 5,
+    time: '2 tuần trước',
+    content: 'Hệ thống tự áp mã giảm giá tốt nhất không cần nhớ code. Đặt 2 tiếng tối còn tách rõ giá cơ bản với phụ phí đèn LED nên anh em trong đội chia tiền rất minh bạch.'
+  },
+  {
+    id: 6,
+    name: 'Đỗ Hải Yến',
+    role: 'Nhóm Cầu Lông Văn Phòng',
+    avatarBg: 'from-cyan-500 to-blue-600',
+    sport: 'BADMINTON',
+    sportLabel: '🏸 Cầu Lông',
+    venue: 'CS3 • Hà Đông',
+    rating: 5,
+    time: '2 tuần trước',
+    content: 'Bãi đỗ xe rộng, phòng thay đồ sạch sẽ có nước nóng lạnh. Có sẵn nhiều dòng vợt Yonex và Li-Ning cho bạn mới đi chơi cùng thuê thử luôn.'
   }
 ];
 
@@ -197,15 +276,26 @@ export default function TrangChu({ user }) {
   const [cumSanNoiBat, setCumSanNoiBat] = useState([]);
   const [dangTai, setDangTai] = useState(true);
 
-  // 1. Slideshow Hero Banner State (5s chuyen anh 1 lan)
+  // 1. Slideshow Hero Banner State (5s chuyen anh 1 lan, tam dung khi hover)
   const [slideHienTai, setSlideHienTai] = useState(0);
+  const [tamDungHero, setTamDungHero] = useState(false);
+  const [locDanhGiaMon, setLocDanhGiaMon] = useState('ALL');
+
+  const chuyenSlideTruoc = () => {
+    setSlideHienTai((prev) => (prev - 1 + SLIDES_HERO.length) % SLIDES_HERO.length);
+  };
+
+  const chuyenSlideSau = () => {
+    setSlideHienTai((prev) => (prev + 1) % SLIDES_HERO.length);
+  };
 
   useEffect(() => {
+    if (tamDungHero) return;
     const timer = setInterval(() => {
       setSlideHienTai((prev) => (prev + 1) % SLIDES_HERO.length);
-    }, 5000);
+    }, 5500);
     return () => clearInterval(timer);
-  }, []);
+  }, [tamDungHero]);
 
   // 2. Popup Chao Mung Thanh Vien Moi (Neu chua dang nhap va chua dong trong session)
   const [hienPopupChaoMung, setHienPopupChaoMung] = useState(false);
@@ -369,29 +459,55 @@ export default function TrangChu({ user }) {
       </AnimatePresence>
 
       {/* =========================================================================
-          1. HERO BANNER SLIDESHOW (5s Tu Dong Chuyen Doi Anh)
+          1. HERO BANNER SLIDESHOW (Co nut chu dong chuyen anh + Tam dung khi hover)
          ========================================================================= */}
-      <section className="relative min-h-[500px] lg:min-h-[540px] flex items-center justify-center overflow-hidden bg-slate-900">
+      <section
+        className="relative min-h-[490px] lg:min-h-[530px] flex items-center justify-center overflow-hidden bg-slate-900 group"
+        onMouseEnter={() => setTamDungHero(true)}
+        onMouseLeave={() => setTamDungHero(false)}
+      >
         
         {/* Slideshow Background Images voi Animation Mo Dan */}
         {SLIDES_HERO.map((slide, idx) => (
           <div 
             key={slide.id}
-            className={`absolute inset-0 z-0 transition-opacity duration-1000 ease-in-out ${
+            className={`absolute inset-0 z-0 transition-all duration-1000 ease-in-out ${
               idx === slideHienTai ? 'opacity-100 scale-100' : 'opacity-0 scale-105 pointer-events-none'
             }`}
           >
             <img 
               src={slide.url} 
               alt={slide.title} 
-              className="w-full h-full object-cover object-center filter brightness-[0.38]"
+              className="w-full h-full object-cover object-center filter brightness-[0.42]"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#111827] via-slate-950/40 to-black/60" />
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/45 to-slate-950/55" />
           </div>
         ))}
 
+        {/* Nut chu dong chuyen slide TRAI */}
+        <button
+          type="button"
+          onClick={chuyenSlideTruoc}
+          aria-label="Ảnh trước"
+          title="Chuyển về ảnh trước"
+          className="absolute left-3 sm:left-6 top-1/2 -translate-y-1/2 z-20 w-11 h-11 rounded-full bg-white/15 hover:bg-white/30 backdrop-blur-md border border-white/25 text-white flex items-center justify-center transition-all cursor-pointer shadow-lg hover:scale-105 active:scale-95"
+        >
+          <ChevronLeft className="w-6 h-6" />
+        </button>
+
+        {/* Nut chu dong chuyen slide PHAI */}
+        <button
+          type="button"
+          onClick={chuyenSlideSau}
+          aria-label="Ảnh tiếp theo"
+          title="Chuyển sang ảnh tiếp theo"
+          className="absolute right-3 sm:right-6 top-1/2 -translate-y-1/2 z-20 w-11 h-11 rounded-full bg-white/15 hover:bg-white/30 backdrop-blur-md border border-white/25 text-white flex items-center justify-center transition-all cursor-pointer shadow-lg hover:scale-105 active:scale-95"
+        >
+          <ChevronRight className="w-6 h-6" />
+        </button>
+
         {/* Noi dung Banner chinh */}
-        <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center pt-10 pb-16">
+        <div className="relative z-10 max-w-4xl mx-auto px-14 sm:px-16 lg:px-8 text-center pt-10 pb-16">
           
           <Motion.div 
             key={`tag-${slideHienTai}`}
@@ -400,7 +516,7 @@ export default function TrangChu({ user }) {
             transition={{ duration: 0.4 }}
             className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white text-xs font-semibold uppercase tracking-wider mb-5"
           >
-            <Sparkles className="w-3.5 h-3.5 text-rose-400" />
+            <Sparkles className="w-3.5 h-3.5 text-amber-300" />
             <span>{currentSlide.tag}</span>
           </Motion.div>
 
@@ -409,10 +525,10 @@ export default function TrangChu({ user }) {
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
-            className="text-3xl sm:text-5xl lg:text-6xl font-black text-white tracking-tight leading-tight mb-4"
+            className="text-3xl sm:text-5xl lg:text-6xl font-black text-white tracking-tight leading-tight mb-4 drop-shadow-sm"
           >
             {currentSlide.title} <br className="hidden sm:inline" />
-            <span className="bg-gradient-to-r from-rose-400 via-brand-500 to-amber-300 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-rose-300 via-amber-200 to-rose-400 bg-clip-text text-transparent">
               {currentSlide.highlight}
             </span>
           </Motion.h1>
@@ -422,7 +538,7 @@ export default function TrangChu({ user }) {
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
-            className="text-sm sm:text-base text-slate-300 max-w-2xl mx-auto mb-8 font-normal leading-relaxed"
+            className="text-sm sm:text-base text-slate-200 max-w-2xl mx-auto mb-8 font-normal leading-relaxed"
           >
             {currentSlide.desc}
           </Motion.p>
@@ -440,29 +556,62 @@ export default function TrangChu({ user }) {
 
             <Link
               to={user ? "/ve-cua-toi" : "/tim-san"}
-              className="w-full sm:w-auto px-7 py-3.5 bg-white/10 hover:bg-white/20 active:scale-95 text-white rounded-full font-bold text-sm border border-white/20 transition flex items-center justify-center gap-2"
+              className="w-full sm:w-auto px-7 py-3.5 bg-white/12 hover:bg-white/22 backdrop-blur-md active:scale-95 text-white rounded-full font-bold text-sm border border-white/25 transition flex items-center justify-center gap-2"
             >
               <QrCode className="w-4 h-4" />
               <span>{user ? "Đặt sân & Mã QR của tôi" : "Xem Mã QR Nhận Sân"}</span>
             </Link>
           </div>
 
-          {/* Dots Dieu Khien Chuyen Slide */}
-          <div className="flex items-center justify-center gap-2">
-            {SLIDES_HERO.map((_, idx) => (
-              <button
-                key={idx}
-                onClick={() => setSlideHienTai(idx)}
-                className={`transition-all duration-300 cursor-pointer ${
-                  idx === slideHienTai 
-                    ? 'w-8 h-2 bg-brand-500 rounded-full' 
-                    : 'w-2 h-2 bg-white/40 hover:bg-white/80 rounded-full'
-                }`}
-                title={`Chuyển đến ảnh ${idx + 1}`}
-              />
-            ))}
+          {/* Dots & Bo dem Slide */}
+          <div className="inline-flex items-center gap-3 px-4 py-1.5 rounded-full bg-black/30 backdrop-blur-md border border-white/15">
+            <span className="text-[11px] font-mono font-bold text-white/80">
+              0{slideHienTai + 1} / 0{SLIDES_HERO.length}
+            </span>
+            <div className="flex items-center gap-1.5">
+              {SLIDES_HERO.map((_, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => setSlideHienTai(idx)}
+                  className={`transition-all duration-300 cursor-pointer ${
+                    idx === slideHienTai 
+                      ? 'w-7 h-2 bg-brand-500 rounded-full' 
+                      : 'w-2 h-2 bg-white/40 hover:bg-white/85 rounded-full'
+                  }`}
+                  title={`Chuyển đến ảnh ${idx + 1}`}
+                />
+              ))}
+            </div>
           </div>
 
+        </div>
+      </section>
+
+      {/* =========================================================================
+          1.5. DẢI CHỈ SỐ UY TÍN (TRUST STATS STRIP)
+         ========================================================================= */}
+      <section className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-20 ${user ? 'mt-5' : '-mt-7'}`}>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          {[
+            { icon: '🏟️', value: '30 Sân', label: 'Chuẩn thi đấu FIFA, BWF, FIBA' },
+            { icon: '📍', value: '3 Cơ Sở', label: 'Cầu Giấy • Đống Đa • Hà Đông' },
+            { icon: '⭐', value: '4.9 / 5.0', label: '1.280+ đánh giá từ vận động viên' },
+            { icon: '⚡', value: '5 Giây', label: 'Check-in QR & Ví SportPay 1 chạm' }
+          ].map((stat, i) => (
+            <div
+              key={i}
+              className="bg-white rounded-2xl px-4 py-3.5 border border-slate-200/80 shadow-md shadow-slate-900/5 flex items-center gap-3"
+            >
+              <div className="w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center text-lg shrink-0">
+                {stat.icon}
+              </div>
+              <div className="min-w-0">
+                <p className="text-base sm:text-lg font-black text-slate-900 leading-tight">{stat.value}</p>
+                <p className="text-[11px] text-slate-500 truncate">{stat.label}</p>
+              </div>
+            </div>
+          ))}
         </div>
       </section>
 
@@ -689,17 +838,17 @@ export default function TrangChu({ user }) {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {cumSanNoiBat.map((san, idx) => {
+            {[...cumSanNoiBat].sort((a, b) => a.id - b.id).map((san, idx) => {
               const courts = san.courts || [];
-              const prices = courts.map(c => Number(c.basePrice || 80000));
-              const giaMin = prices.length ? Math.min(...prices) : 80000;
+              const prices = courts.map(c => Number(c.basePrice || 100000));
+              const giaMin = prices.length ? Math.min(...prices) : 100000;
               const anhCoSoMap = {
-                1: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=1000&auto=format&fit=crop',
-                2: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?q=80&w=1000&auto=format&fit=crop',
-                3: 'https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?q=80&w=1000&auto=format&fit=crop',
+                1: '/images/courts/football/football_5_cs1.jpg',
+                2: '/images/courts/badminton/badminton_pvc_cs2.jpg',
+                3: '/images/courts/tennis/tennis_hard_cs3.jpg',
               };
               const anhUrl = anhCoSoMap[san.id] || DANH_MUC_MON_THE_THAO[idx % DANH_MUC_MON_THE_THAO.length].img;
-              const tenBadge = san.id === 1 ? 'CƠ SỞ 1 • CẦU GIẤY' : san.id === 2 ? 'CƠ SỞ 2 • ĐỐNG ĐA' : 'CƠ SỞ 3 • LONG BIÊN';
+              const tenBadge = san.id === 1 ? 'CƠ SỞ 1 • CẦU GIẤY' : san.id === 2 ? 'CƠ SỞ 2 • ĐỐNG ĐA' : 'CƠ SỞ 3 • HÀ ĐÔNG';
               const mauBadge = san.id === 1 ? 'bg-rose-600' : san.id === 2 ? 'bg-amber-600' : 'bg-blue-600';
 
               return (
@@ -723,6 +872,10 @@ export default function TrangChu({ user }) {
                           ⚡ {tenBadge}
                         </span>
                       </div>
+                      <div className="absolute bottom-3 right-3 px-2.5 py-1 rounded-full bg-black/65 backdrop-blur-md text-white text-[11px] font-black flex items-center gap-1">
+                        <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                        <span>4.9</span>
+                      </div>
                     </div>
 
                     <div className="p-5">
@@ -739,8 +892,8 @@ export default function TrangChu({ user }) {
                         <span>06:00 - 22:30 • Đang mở cửa</span>
                       </div>
 
-                      <p className="text-xs text-slate-400 line-clamp-1">
-                        🏸 {courts.length} sân đang hoạt động sẵn sàng
+                      <p className="text-xs text-slate-500 line-clamp-1 font-medium">
+                        🏟️ 10 sân chuẩn thi đấu (Bóng đá, Cầu lông, Bóng rổ, Tennis)
                       </p>
                     </div>
                   </div>
@@ -762,6 +915,94 @@ export default function TrangChu({ user }) {
             })}
           </div>
         )}
+      </section>
+
+      {/* =========================================================================
+          5.5. ĐÁNH GIÁ TỪ KHÁCH HÀNG & VẬN ĐỘNG VIÊN THỰC TẾ (TESTIMONIALS)
+         ========================================================================= */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-7">
+          <div>
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 text-amber-700 text-xs font-bold border border-amber-200/80 mb-2">
+              <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-500" />
+              <span>4.9 / 5.0 • Hơn 1.280 lượt đặt sân hài lòng</span>
+            </div>
+            <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+              Khách Hàng Nói Gì Về ESportKing?
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-500 mt-1">
+              Cảm nhận thực tế từ các đội bóng và câu lạc bộ đặt lịch thường xuyên tại 3 cơ sở Hà Nội
+            </p>
+          </div>
+
+          {/* Bo loc nhanh theo mon */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {[
+              { code: 'ALL', label: 'Tất cả' },
+              { code: 'FOOTBALL', label: '⚽ Bóng đá' },
+              { code: 'BADMINTON', label: '🏸 Cầu lông' },
+              { code: 'TENNIS', label: '🎾 Tennis' },
+              { code: 'BASKETBALL', label: '🏀 Bóng rổ' }
+            ].map((tab) => (
+              <button
+                key={tab.code}
+                type="button"
+                onClick={() => setLocDanhGiaMon(tab.code)}
+                className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition cursor-pointer ${
+                  locDanhGiaMon === tab.code
+                    ? 'bg-slate-900 text-white shadow-sm'
+                    : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {DANH_GIA_KHACH_HANG
+            .filter((rv) => locDanhGiaMon === 'ALL' || rv.sport === locDanhGiaMon)
+            .map((rv) => (
+              <div
+                key={rv.id}
+                className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-sm hover:shadow-md transition-all flex flex-col justify-between relative"
+              >
+                <Quote className="w-8 h-8 text-rose-100 absolute top-4 right-5 pointer-events-none" />
+
+                <div>
+                  <div className="flex items-center gap-1 mb-3">
+                    {Array.from({ length: rv.rating }).map((_, idx) => (
+                      <Star key={idx} className="w-4 h-4 fill-amber-400 text-amber-400" />
+                    ))}
+                    <span className="ml-2 text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200/70 px-2 py-0.5 rounded-full">
+                      ✓ Đã đặt sân
+                    </span>
+                  </div>
+
+                  <p className="text-xs sm:text-[13px] text-slate-600 leading-relaxed mb-4">
+                    “{rv.content}”
+                  </p>
+                </div>
+
+                <div className="pt-3.5 border-t border-slate-100 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className={`w-9 h-9 rounded-full bg-gradient-to-tr ${rv.avatarBg} text-white font-black text-xs flex items-center justify-center shrink-0 shadow-xs`}>
+                      {rv.name.split(' ').slice(-1)[0].charAt(0)}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-black text-slate-900 truncate">{rv.name}</p>
+                      <p className="text-[11px] text-slate-400 truncate">{rv.role}</p>
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <span className="block text-[10px] font-bold text-brand-600">{rv.sportLabel}</span>
+                    <span className="block text-[10px] text-slate-400">{rv.venue} • {rv.time}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+        </div>
       </section>
 
       {/* =========================================================================
@@ -836,11 +1077,11 @@ export default function TrangChu({ user }) {
             <div className="md:col-span-1 space-y-4">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-brand-600 to-rose-500 flex items-center justify-center text-white font-black text-base shadow-md">
-                  SB
+                  EK
                 </div>
                 <div>
-                  <span className="text-lg font-black tracking-tight">Sport<span className="text-rose-400">Booking</span></span>
-                  <span className="ml-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-white/10 text-rose-300">PRO</span>
+                  <span className="text-lg font-black tracking-tight">ESport<span className="text-rose-400">King</span></span>
+                  <span className="ml-1.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-white/10 text-rose-300">HÀ NỘI</span>
                 </div>
               </div>
 
@@ -982,7 +1223,7 @@ export default function TrangChu({ user }) {
           {/* Dong ban quyen cuoi trang */}
           <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
             <p>© 2026 ESportKing Sports Complex. Đồ Án Phát Triển Phần Mềm Hướng Dịch Vụ - ĐH Kiến Trúc Hà Nội.</p>
-            <p>Hệ thống 3 cơ sở thể thao chuẩn thi đấu tại Hà Nội (Cầu Giấy • Đống Đa • Long Biên).</p>
+            <p>Hệ thống 3 cơ sở thể thao chuẩn thi đấu tại Hà Nội (Cầu Giấy • Đống Đa • Hà Đông).</p>
           </div>
 
         </div>
