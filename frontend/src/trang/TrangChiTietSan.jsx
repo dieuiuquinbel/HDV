@@ -337,46 +337,48 @@ export default function TrangChiTietSan({ user: propUser }) {
     if (!courtId || !selectedDate || !startSlot || !durationMinutes) {
       setPreviewGia(null);
       setPreviewError(null);
+      setPreviewLoading(false);
       return;
     }
 
     let cancel = false;
-    // Ngay khi đổi lựa chọn: vô hiệu hóa báo giá cũ để tránh race condition & hiển thị sai tiền
-    setPreviewGia(null);
     setPreviewError(null);
     setPreviewLoading(true);
 
     const slotFormatted = startSlot.length === 5 ? `${startSlot}:00` : startSlot;
 
-    apiDichVu.tinhBaoGiaSan({
-      courtId,
-      bookingDate: selectedDate,
-      startSlot: slotFormatted,
-      durationMinutes: Number(durationMinutes),
-      voucherCode: selectedVoucher || null,
-      addonAmount: tongTienDichVu,
-      addonSummary: addonSummaryText
-    })
-      .then(res => {
-        if (!cancel && res.data) {
-          setPreviewGia(res.data);
-          setPreviewError(null);
-        }
+    // Debounce nhẹ 120ms & giữ nguyên previewGia cũ khi đang tải để giao diện mượt, không giật nháy
+    const timer = setTimeout(() => {
+      apiDichVu.tinhBaoGiaSan({
+        courtId,
+        bookingDate: selectedDate,
+        startSlot: slotFormatted,
+        durationMinutes: Number(durationMinutes),
+        voucherCode: selectedVoucher || null,
+        addonAmount: tongTienDichVu,
+        addonSummary: addonSummaryText
       })
-      .catch(err => {
-        if (!cancel) {
-          console.warn('Lỗi gọi preview báo giá từ backend:', err);
-          const msg = err.response?.data?.message || 'Khung giờ này không khả dụng hoặc vượt quá giới hạn.';
-          setPreviewError(msg);
-          setPreviewGia(null);
-        }
-      })
-      .finally(() => {
-        if (!cancel) setPreviewLoading(false);
-      });
+        .then(res => {
+          if (!cancel && res.data) {
+            setPreviewGia(res.data);
+            setPreviewError(null);
+          }
+        })
+        .catch(err => {
+          if (!cancel) {
+            console.warn('Lỗi gọi preview báo giá từ backend:', err);
+            const msg = err.response?.data?.message || 'Khung giờ này không khả dụng hoặc vượt quá giới hạn.';
+            setPreviewError(msg);
+          }
+        })
+        .finally(() => {
+          if (!cancel) setPreviewLoading(false);
+        });
+    }, 120);
 
     return () => {
       cancel = true;
+      clearTimeout(timer);
     };
   }, [selectedCourt?.realCourtId, selectedCourt?.id, selectedDate, startSlot, durationMinutes, selectedVoucher, tongTienDichVu, addonSummaryText]);
 
@@ -472,28 +474,29 @@ export default function TrangChiTietSan({ user: propUser }) {
     return tong;
   }, [previewGia?.totalCourtPrice, donGiaSan, startSlot, durationMinutes]);
 
-  // Tìm voucher tốt nhất cho số tiền thuê sân hiện tại
+  // Tìm voucher tốt nhất cho tổng đơn hiện tại (Tiền sân + Dịch vụ kèm theo)
   const bestVoucherInfo = useMemo(() => {
-    if (!tongTienSan || tongTienSan <= 0 || !vouchers.length) return null;
+    const tongDonTruocGiam = tongTienSan + tongTienDichVu;
+    if (!tongDonTruocGiam || tongDonTruocGiam <= 0 || !vouchers.length) return null;
     let best = null;
     let maxGiam = 0;
 
     for (const v of vouchers) {
-      const g = tinhTienGiamVoucherThucTe(v, tongTienSan);
+      const g = tinhTienGiamVoucherThucTe(v, tongDonTruocGiam);
       if (g > maxGiam) {
         maxGiam = g;
         best = v;
       }
     }
     return best ? { voucher: best, discount: maxGiam } : null;
-  }, [tongTienSan, vouchers]);
+  }, [tongTienSan, tongTienDichVu, vouchers]);
 
-  // Tự động áp dụng mã giảm giá tốt nhất nếu người dùng chưa tự tay chọn hoặc hủy chọn
+  // Tự động áp dụng mã giảm giá tốt nhất (chỉ chạy khi không đang tải báo giá để tránh vòng lặp giật)
   useEffect(() => {
-    if (!daTuChonVoucher && bestVoucherInfo) {
+    if (!daTuChonVoucher && !previewLoading && bestVoucherInfo && bestVoucherInfo.voucher.code !== selectedVoucher) {
       setSelectedVoucher(bestVoucherInfo.voucher.code);
     }
-  }, [bestVoucherInfo, daTuChonVoucher]);
+  }, [bestVoucherInfo, daTuChonVoucher, previewLoading, selectedVoucher]);
 
   // Tiền giảm voucher: Ưu tiên backend preview
   const tienGiam = useMemo(() => {
