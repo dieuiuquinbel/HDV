@@ -113,8 +113,8 @@ function traLoiFaqCoSan(text) {
   return null;
 }
 
-const FAB_W = 132;
-const FAB_H = 44;
+const FAB_W = 56;
+const FAB_H = 56;
 const PANEL_W = 340;
 const PANEL_H = 460;
 const MARGIN = 16;
@@ -445,7 +445,7 @@ export default function NutGoiDichVuFAB({ user }) {
         className="fixed z-50 select-none"
       >
         <div className="relative group flex items-center">
-          {/* Nut 'x' nho canh logo de an chatbot */}
+          {/* Nut 'x' nho goc tren phai logo de an chatbot */}
           {!moWidget && (
             <button
               type="button"
@@ -454,13 +454,13 @@ export default function NutGoiDichVuFAB({ user }) {
                 setDaAnBot(true);
               }}
               title="Ẩn Trợ Lý AI"
-              className="absolute -top-2 -right-2 z-10 w-5 h-5 rounded-full bg-slate-800 hover:bg-rose-600 text-white border border-white flex items-center justify-center shadow-md transition cursor-pointer"
+              className="absolute -top-1 -right-1 z-10 w-5 h-5 rounded-full bg-slate-900/90 hover:bg-rose-600 text-white border border-white flex items-center justify-center shadow-md transition cursor-pointer"
             >
               <X className="w-3 h-3" />
             </button>
           )}
 
-          {/* Nut chinh: Nhan giu de keo, bam nhanh de mo/dong */}
+          {/* Logo meo tron to: Nhan giu de keo, bam nhanh de mo/dong Tro Ly AI */}
           <button
             type="button"
             onPointerDown={batDauKeo}
@@ -468,25 +468,25 @@ export default function NutGoiDichVuFAB({ user }) {
               if (dragRef.current.moved) return;
               setMoWidget(prev => !prev);
             }}
-            title="Nhấn để mở Trợ Lý • Nhấn giữ để kéo sang vị trí khác"
-            className={`flex items-center gap-2 px-3.5 py-2.5 bg-gradient-to-r from-brand-600 via-rose-500 to-amber-500 hover:from-brand-700 hover:to-amber-600 text-white rounded-full font-black text-xs shadow-xl shadow-brand-600/30 border border-white/25 transition-transform ${
-              dangKeo ? 'cursor-grabbing scale-105' : 'cursor-grab hover:scale-[1.03]'
+            aria-label="Mở Trợ Lý AI ESportKing"
+            title="Nhấn để mở Trợ Lý AI • Nhấn giữ để kéo sang vị trí khác"
+            className={`relative w-14 h-14 rounded-full p-0.5 bg-gradient-to-tr from-brand-600 via-rose-500 to-amber-400 shadow-2xl shadow-brand-600/35 flex items-center justify-center transition-transform ${
+              dangKeo ? 'cursor-grabbing scale-110' : 'cursor-grab hover:scale-105'
             }`}
           >
-            <div className="relative flex items-center justify-center">
-              {moWidget ? <X className="w-4 h-4" /> : <LogoTroLyAI className="w-7 h-7" />}
-              {!moWidget && (
-                <span className="absolute -top-0.5 -right-0.5 flex h-2.5 w-2.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-300 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-400 border border-white"></span>
-                </span>
-              )}
-            </div>
-            <span className="tracking-wide whitespace-nowrap">
-              {moWidget ? 'Thu gọn' : 'Trợ Lý AI'}
-            </span>
-            {!moWidget && sanDangChon && (
-              <span className="w-2 h-2 rounded-full bg-amber-200 animate-pulse" title="Đang Check-in • Có thể gọi đồ tận sân" />
+            {moWidget ? (
+              <span className="w-full h-full rounded-full bg-slate-900/90 text-white flex items-center justify-center">
+                <X className="w-6 h-6" />
+              </span>
+            ) : (
+              <LogoTroLyAI className="w-full h-full ring-0" />
+            )}
+
+            {!moWidget && (
+              <span className="absolute bottom-0 right-0 flex h-3.5 w-3.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-300 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-emerald-500 border-2 border-white"></span>
+              </span>
             )}
           </button>
         </div>
