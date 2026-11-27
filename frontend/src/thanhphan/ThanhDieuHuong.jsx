@@ -8,7 +8,6 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   Trophy, 
   Search, 
-  CalendarDays, 
   QrCode, 
   User, 
   Bell, 
@@ -17,14 +16,12 @@ import {
   LogOut, 
   Shield, 
   Building2, 
-  CheckCircle2, 
   Menu, 
   X,
   Ticket,
   ChevronDown,
   Sparkles,
   Gift,
-  Flame,
   CheckCheck,
   Clock,
   ArrowRight,
@@ -317,14 +314,6 @@ export default function ThanhDieuHuong({ user, onDangXuat }) {
       { to: '/checkin', label: 'Trạm Check-In', icon: QrCode },
       { to: '/admin', label: 'Quản trị Admin', icon: Shield }
     );
-  } else if (user.role === 'OWNER') {
-    // 4. Chủ sân cơ sở
-    navItems.push(
-      { to: '/', label: 'Trang chủ', icon: Trophy },
-      { to: '/tim-san', label: 'Tìm sân', icon: Search },
-      { to: '/owner', label: 'Quản lý sân', icon: Building2 },
-      { to: '/checkin', label: 'Trạm Check-in', icon: QrCode }
-    );
   } else {
     // 5. KHÁCH HÀNG THÀNH VIÊN (CHÍNH XÁC 4 TAB DUY NHẤT: Trang chủ, Tìm sân, Thanh toán, Đặt sân của tôi)
     navItems.push(
@@ -365,7 +354,6 @@ export default function ThanhDieuHuong({ user, onDangXuat }) {
     }
     if (path === '/checkin' && location.pathname === '/checkin') return true;
     if (path === '/admin' && location.pathname.startsWith('/admin')) return true;
-    if (path === '/owner' && location.pathname.startsWith('/owner')) return true;
     return false;
   };
 
@@ -450,13 +438,13 @@ export default function ThanhDieuHuong({ user, onDangXuat }) {
             <div className="relative" ref={dropdownThongBaoRef}>
               <button
                 onClick={() => setHienPopupThongBao(!hienPopupThongBao)}
-                className="p-2.5 rounded-full text-slate-600 hover:text-slate-900 hover:bg-slate-100 relative transition cursor-pointer"
+                className="w-10 h-10 rounded-full text-slate-600 hover:text-slate-900 hover:bg-slate-100 relative flex items-center justify-center transition cursor-pointer"
                 title="Thông báo"
               >
                 <Bell className="w-5 h-5 text-slate-600" />
                 {soThongBaoChuaDoc > 0 && (
-                  <span className="absolute top-1.5 right-1.5 min-w-[18px] h-[18px] px-1 bg-rose-600 text-white text-[10px] font-black rounded-full flex items-center justify-center ring-2 ring-white shadow-sm animate-pulse">
-                    {soThongBaoChuaDoc}
+                  <span className="absolute -top-0.5 -right-0.5 z-10 min-w-[18px] h-[18px] px-1 bg-rose-600 text-white text-[10px] font-black leading-none rounded-full flex items-center justify-center ring-2 ring-white shadow-sm">
+                    {soThongBaoChuaDoc > 99 ? '99+' : soThongBaoChuaDoc}
                   </span>
                 )}
               </button>
@@ -578,7 +566,7 @@ export default function ThanhDieuHuong({ user, onDangXuat }) {
                   <div className="hidden lg:block text-left max-w-[120px]">
                     <p className="text-xs font-bold text-slate-800 leading-tight truncate">{user.fullName || 'Người dùng'}</p>
                     <p className="text-[10px] font-semibold text-brand-600 leading-none">
-                      {user.role === 'ADMIN' ? '👑 Chủ Hệ Thống' : user.role === 'STAFF' ? '⚡ Nhân Viên Trực Ban' : user.role === 'OWNER' ? '🏟️ Chủ Cơ Sở' : 'Thành Viên'}
+                      {user.role === 'ADMIN' ? '👑 Chủ Hệ Thống' : user.role === 'STAFF' ? '⚡ Nhân Viên Trực Ban' : 'Thành Viên'}
                     </p>
                   </div>
                   <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${hienDropdownAvatar ? 'rotate-180 text-brand-600' : ''}`} />

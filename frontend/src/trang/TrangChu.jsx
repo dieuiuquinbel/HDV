@@ -14,27 +14,20 @@ import { motion as Motion, AnimatePresence } from 'framer-motion';
 import { 
   Search, 
   MapPin, 
-  Trophy, 
   Calendar, 
   Sparkles, 
   ArrowRight, 
   ShieldCheck, 
-  Zap, 
   Clock,
   QrCode,
   Flame,
-  Award,
-  Coins,
   Ticket,
   ChevronLeft,
   ChevronRight,
-  ExternalLink,
-  Gift,
   CheckCircle2,
   X,
   Phone,
   Mail,
-  Share2,
   Star,
   Quote
 } from 'lucide-react';
@@ -88,7 +81,7 @@ const DANH_GIA_KHACH_HANG = [
     venue: 'CS1 • Cầu Giấy',
     rating: 5,
     time: '2 ngày trước',
-    content: 'Đặt sân 7 cỏ FIFA Pro ở CS1 cực nhanh, khóa slot realtime không lo trùng kèo. Đèn LED tối sáng rõ, có sẵn 1 bóng và thuê thêm trọng tài trọn ca rất tiện!'
+    content: 'Đá sân 7 bên Duy Tân mấy tháng nay rồi, cỏ êm, trời mưa nhẹ vẫn đá được vì có mái che. Tối bật đèn khá sáng, gửi xe ngay cổng tiện.'
   },
   {
     id: 2,
@@ -100,7 +93,7 @@ const DANH_GIA_KHACH_HANG = [
     venue: 'CS2 • Đống Đa',
     rating: 5,
     time: '4 ngày trước',
-    content: 'Thảm PVC xanh êm chân, trần cao không bị chói đèn. Thích nhất là thanh toán bằng Ví SportPay 1 chạm rồi quét mã QR vào sân mất đúng 5 giây.'
+    content: 'Sân thảm xanh sạch, trần cao đánh cầu không bị chói mắt. Đặt giờ trên web xong đến đọc mã là vào luôn, đỡ phải gọi điện hỏi sân trống.'
   },
   {
     id: 3,
@@ -110,9 +103,9 @@ const DANH_GIA_KHACH_HANG = [
     sport: 'TENNIS',
     sportLabel: '🎾 Tennis',
     venue: 'CS3 • Hà Đông',
-    rating: 5,
+    rating: 4,
     time: '1 tuần trước',
-    content: 'Mặt sân đất nện và sân cứng Decoturf ở CS3 bảo trì rất đều, thuê thêm vợt Wilson Pro Staff và máy bắn bóng tập cuối tuần cực kỳ đáng tiền.'
+    content: 'Mặt sân cứng bên Hà Đông khá ổn, lưới căng, nhân viên nhiệt tình. Mỗi tội tối thứ 7 hay hết sân sớm nên nhóm mình toàn phải đặt từ thứ 5.'
   },
   {
     id: 4,
@@ -124,19 +117,19 @@ const DANH_GIA_KHACH_HANG = [
     venue: 'CS1 • Cầu Giấy',
     rating: 5,
     time: '1 tuần trước',
-    content: 'Sàn gỗ 5x5 trong nhà mát rượi, bảng rổ kính cường lực chuẩn FIBA. Hôm trước đội bận đột xuất hủy trước 24h được hoàn 100% về ví ngay lập tức, quá uy tín!'
+    content: 'Sàn gỗ đánh êm, điều hòa mát, bảng kính ném thích tay. Hôm trước team bận đột xuất hủy trước nửa ngày vẫn được hoàn đủ tiền về ví.'
   },
   {
     id: 5,
     name: 'Vũ Quang Huy',
-    role: 'Thành viên hạng Vàng',
+    role: 'Khách quen CS2',
     avatarBg: 'from-purple-500 to-pink-600',
     sport: 'FOOTBALL',
     sportLabel: '⚽ Bóng Đá',
     venue: 'CS2 • Đống Đa',
     rating: 5,
     time: '2 tuần trước',
-    content: 'Hệ thống tự áp mã giảm giá tốt nhất không cần nhớ code. Đặt 2 tiếng tối còn tách rõ giá cơ bản với phụ phí đèn LED nên anh em trong đội chia tiền rất minh bạch.'
+    content: 'Giá thuê rõ ràng ngay lúc chọn giờ nên anh em trong đội chia tiền dễ, không bị thu thêm lặt vặt. Có sẵn nước mát với phòng tắm khá sạch.'
   },
   {
     id: 6,
@@ -148,7 +141,7 @@ const DANH_GIA_KHACH_HANG = [
     venue: 'CS3 • Hà Đông',
     rating: 5,
     time: '2 tuần trước',
-    content: 'Bãi đỗ xe rộng, phòng thay đồ sạch sẽ có nước nóng lạnh. Có sẵn nhiều dòng vợt Yonex và Li-Ning cho bạn mới đi chơi cùng thuê thử luôn.'
+    content: 'Hội văn phòng hay ra đây đánh sau giờ làm. Bãi để xe rộng, ai quên vợt có thể thuê ngay tại quầy, vợt còn mới chứ không bị cũ quá.'
   }
 ];
 
@@ -563,11 +556,8 @@ export default function TrangChu({ user }) {
             </Link>
           </div>
 
-          {/* Dots & Bo dem Slide */}
-          <div className="inline-flex items-center gap-3 px-4 py-1.5 rounded-full bg-black/30 backdrop-blur-md border border-white/15">
-            <span className="text-[11px] font-mono font-bold text-white/80">
-              0{slideHienTai + 1} / 0{SLIDES_HERO.length}
-            </span>
+          {/* Dots chuyen Slide */}
+          <div className="inline-flex items-center px-3.5 py-2 rounded-full bg-black/30 backdrop-blur-md border border-white/15">
             <div className="flex items-center gap-1.5">
               {SLIDES_HERO.map((_, idx) => (
                 <button

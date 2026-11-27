@@ -7,9 +7,11 @@
  *  2. Tab 'checkin': Trạm Check-In Trực Ban (Quét QR, xác minh nhận/trả sân 3 cơ sở, không còn nút rác demo).
  *  3. Tab 'system': Quản Lý Hệ Thống (Gồm 2 Sub-tab: Quản Lý 30 Sân & Bảng Giá / Quản Lý Tài Khoản & Phân Quyền).
  */
-import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { apiDichVu } from '../dichvu/api';
+import TAI_KHOAN_MAC_DINH from '../../../tai-khoan-mac-dinh.json';
+import CacModalAdmin from '../thanhphan/admin/CacModalAdmin';
 import TrangQuetCheckIn from './TrangQuetCheckIn';
 import { 
   Shield, 
@@ -18,49 +20,30 @@ import {
   Lock, 
   Unlock, 
   Search, 
-  Sun, 
-  Moon, 
+  Bell,
+  LogOut,
   RefreshCw, 
   AlertTriangle, 
   X,
   CheckCircle2,
-  TrendingUp,
   Percent,
   Clock,
   Layers,
-  ArrowUpRight,
-  ArrowDownRight,
   DollarSign,
   Coffee,
   Check,
   Building2,
-  MapPin,
-  Trophy,
   Activity,
   Receipt,
-  RotateCcw,
-  Plus,
   Edit2,
   Trash2,
   UserPlus,
-  ShieldCheck,
-  ChevronRight,
   Filter,
   BarChart3,
-  HelpCircle,
-  AlertCircle,
-  ExternalLink,
-  Flame,
-  Zap,
-  Tag,
-  Wallet,
-  LogOut,
-  Home,
-  QrCode,
   Inbox
 } from 'lucide-react';
 
-export default function TrangQuanTriAdmin({ nguoiDung }) {
+export default function TrangQuanTriAdmin({ nguoiDung, onDangXuat }) {
   const navigate = useNavigate();
 
   // Tab chinh: 'dashboard' (Trang Chủ) | 'checkin' (Trạm Check-In) | 'system' (Quản Lý Hệ Thống)
@@ -68,9 +51,13 @@ export default function TrangQuanTriAdmin({ nguoiDung }) {
   // Sub-tab cua Tab system: 'courts' | 'users'
   const [subTab, setSubTab] = useState('courts');
 
-  const [isDark, setIsDark] = useState(false);
-  const [timeRange, setTimeRange] = useState('all'); // 'today' | 'week' | 'month' | 'quarter' | 'all'
+  const [timeRange, setTimeRange] = useState('all'); // 'today' | 'week' | 'month' | 'all'
   const [refreshing, setRefreshing] = useState(false);
+
+  // Thong bao realtime cho Admin
+  const [thongBaoList, setThongBaoList] = useState([]);
+  const [hienDropdownThongBao, setHienDropdownThongBao] = useState(false);
+  const dropdownThongBaoRef = useRef(null);
 
   // Du lieu nguoi dung
   const [users, setUsers] = useState([]);
@@ -104,13 +91,71 @@ export default function TrangQuanTriAdmin({ nguoiDung }) {
   const [newPriceInput, setNewPriceInput] = useState('');
   const [modalConfirmLockCourt, setModalConfirmLockCourt] = useState(null);
 
+  const taiThongBaoAdmin = async () => {
+    try {
+      const res = await apiDichVu.layThongBaoCuaToi();
+      if (Array.isArray(res.data)) {
+        setThongBaoList(res.data);
+      }
+    } catch {}
+  };
+
+  const danhDauDaDocTatCa = async () => {
+    try {
+      await apiDichVu.danhDauDaDocTatCaThongBao();
+      setThongBaoList((prev) => prev.map((tb) => ({ ...tb, isRead: true })));
+    } catch {}
+  };
+
+  const xuLyDangXuatAdmin = async () => {
+    if (onDangXuat) {
+      onDangXuat();
+      return;
+    }
+    try {
+      await apiDichVu.dangXuat();
+    } catch {}
+    try {
+      localStorage.removeItem('esportking_user');
+    } catch {}
+    window.location.href = '/login';
+  };
+
   useEffect(() => {
     if (!nguoiDung || nguoiDung.role !== 'ADMIN') {
       navigate('/dang-nhap');
       return;
     }
     taiDuLieuHeThong();
+    taiThongBaoAdmin();
+    const timer = setInterval(taiThongBaoAdmin, 6000);
+    const onNotif = () => {
+      taiThongBaoAdmin();
+      taiDuLieuHeThong();
+    };
+    window.addEventListener('cap_nhat_thong_bao', onNotif);
+    window.addEventListener('cap_nhat_ve', onNotif);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('cap_nhat_thong_bao', onNotif);
+      window.removeEventListener('cap_nhat_ve', onNotif);
+    };
   }, [nguoiDung]);
+
+  useEffect(() => {
+    const onOutsideClick = (e) => {
+      if (dropdownThongBaoRef.current && !dropdownThongBaoRef.current.contains(e.target)) {
+        setHienDropdownThongBao(false);
+      }
+    };
+    document.addEventListener('mousedown', onOutsideClick);
+    return () => document.removeEventListener('mousedown', onOutsideClick);
+  }, []);
+
+  const soThongBaoChuaDoc = useMemo(
+    () => thongBaoList.filter((tb) => !tb.isRead).length,
+    [thongBaoList]
+  );
 
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
@@ -203,7 +248,7 @@ export default function TrangQuanTriAdmin({ nguoiDung }) {
       setModalConfirmLockCourt(null);
       taiDanhSachSanToanHeThong();
     } catch (err) {
-      alert(err.response?.data?.message || 'Lỗi khi cập nhật trạng thái sân.');
+      showToast(err.response?.data?.message || 'Lỗi khi cập nhật trạng thái sân.', 'error');
       setModalConfirmLockCourt(null);
     }
   };
@@ -212,7 +257,7 @@ export default function TrangQuanTriAdmin({ nguoiDung }) {
     if (!modalEditCourtPrice) return;
     const priceNum = parseFloat(newPriceInput);
     if (isNaN(priceNum) || priceNum < 0) {
-      alert('Vui lòng nhập đơn giá hợp lệ lớn hơn hoặc bằng 0.');
+      showToast('Vui lòng nhập đơn giá hợp lệ lớn hơn hoặc bằng 0.', 'error');
       return;
     }
 
@@ -226,7 +271,7 @@ export default function TrangQuanTriAdmin({ nguoiDung }) {
       setModalEditCourtPrice(null);
       taiDanhSachSanToanHeThong();
     } catch (err) {
-      alert(err.response?.data?.message || 'Lỗi khi cập nhật giá sân.');
+      showToast(err.response?.data?.message || 'Lỗi khi cập nhật giá sân.', 'error');
     }
   };
 
@@ -242,7 +287,7 @@ export default function TrangQuanTriAdmin({ nguoiDung }) {
       showToast(`Đã ${delta > 0 ? 'tăng' : 'giảm'} giá sân [${court.courtCode || court.name}] thành ${newPrice.toLocaleString('vi-VN')} đ`);
       taiDanhSachSanToanHeThong();
     } catch (err) {
-      alert(err.response?.data?.message || 'Lỗi khi cập nhật giá sân nhanh.');
+      showToast(err.response?.data?.message || 'Lỗi khi cập nhật giá sân nhanh.', 'error');
     }
   };
 
@@ -259,7 +304,7 @@ export default function TrangQuanTriAdmin({ nguoiDung }) {
       setModalConfirmLockUser(null);
       taiNguoiDung();
     } catch (err) {
-      alert(err.response?.data?.message || 'Lỗi khi cập nhật trạng thái.');
+      showToast(err.response?.data?.message || 'Lỗi khi cập nhật trạng thái.', 'error');
       setModalConfirmLockUser(null);
     }
   };
@@ -272,7 +317,7 @@ export default function TrangQuanTriAdmin({ nguoiDung }) {
       setModalConfirmDeleteUser(null);
       taiNguoiDung();
     } catch (err) {
-      alert(err.response?.data?.message || 'Lỗi khi xóa tài khoản.');
+      showToast(err.response?.data?.message || 'Lỗi khi xóa tài khoản.', 'error');
       setModalConfirmDeleteUser(null);
     }
   };
@@ -301,13 +346,35 @@ export default function TrangQuanTriAdmin({ nguoiDung }) {
       setModalUserForm(null);
       taiNguoiDung();
     } catch (err) {
-      alert(err.response?.data?.message || 'Lỗi khi lưu thông tin người dùng.');
+      showToast(err.response?.data?.message || 'Lỗi khi lưu thông tin người dùng.', 'error');
     }
   };
 
   // ==========================================
   // 3. THONG KE 100% THUC TE (KHONG CO DU LIEU BIA)
   // ==========================================
+  const bookingsTheoChuKy = useMemo(() => {
+    if (timeRange === 'all') return bookings;
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    return bookings.filter((b) => {
+      const raw = b.createdAt || b.bookingDate;
+      if (!raw) return true;
+      const d = new Date(raw);
+      if (Number.isNaN(d.getTime())) return true;
+      if (timeRange === 'today') return d >= startOfToday;
+      if (timeRange === 'week') {
+        const weekAgo = new Date(startOfToday);
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        return d >= weekAgo;
+      }
+      if (timeRange === 'month') {
+        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+      }
+      return true;
+    });
+  }, [bookings, timeRange]);
+
   const thongKeThucTe = useMemo(() => {
     let grossValue = 0;
     let voucherTotal = 0;
@@ -321,39 +388,55 @@ export default function TrangQuanTriAdmin({ nguoiDung }) {
     let cancelledCount = 0;
     let totalBookedHours = 0;
 
-    bookings.forEach(b => {
-      const price = Number(b.totalPrice) || 0;
-      const courtPrice = Number(b.courtPrice) || price;
-      const discount = Number(b.discountAmount) || 0;
-      const addon = Number(b.addonAmount) || 0;
-
-      grossValue += (courtPrice + addon);
-      voucherTotal += discount;
-      addonServicesTotal += addon;
+    bookingsTheoChuKy.forEach((b) => {
+      const totalAmt = Number(b.totalAmount ?? b.totalPrice ?? 0);
+      const discount = Number(b.discountAmount || 0);
+      const addon = Number(b.addonAmount || 0);
+      const status = String(b.status || '').toUpperCase();
 
       const duration = Number(b.durationMinutes) || 60;
-      totalBookedHours += (duration / 60);
+      if (['CONFIRMED', 'PAID', 'CHECKED_IN', 'COMPLETED'].includes(status)) {
+        totalBookedHours += duration / 60;
+      }
 
-      if (b.status === 'PENDING') pendingCount++;
-      else if (b.status === 'PAID') paidCount++;
-      else if (b.status === 'CHECKED_IN') checkedInCount++;
-      else if (b.status === 'COMPLETED') completedCount++;
-      else if (b.status === 'CANCELLED') {
+      if (status === 'PENDING_PAYMENT' || status === 'PENDING') {
+        pendingCount++;
+      } else if (status === 'CONFIRMED' || status === 'PAID') {
+        paidCount++;
+        grossValue += totalAmt + discount;
+        voucherTotal += discount;
+        addonServicesTotal += addon;
+      } else if (status === 'CHECKED_IN') {
+        checkedInCount++;
+        grossValue += totalAmt + discount;
+        voucherTotal += discount;
+        addonServicesTotal += addon;
+      } else if (status === 'COMPLETED') {
+        completedCount++;
+        grossValue += totalAmt + discount;
+        voucherTotal += discount;
+        addonServicesTotal += addon;
+      } else if (status === 'CANCELLED' || status === 'CANCELLED_REFUNDED') {
         cancelledCount++;
-        const refund = Number(b.refundAmount) || (price * 0.8);
-        refundedTotal += refund;
-        cancellationFee += Math.max(0, price - refund);
+        if (status === 'CANCELLED_REFUNDED' && totalAmt > 0) {
+          grossValue += totalAmt + discount;
+          voucherTotal += discount;
+          const refund = Number(b.refundAmount ?? Math.round(totalAmt * 0.8));
+          refundedTotal += refund;
+          cancellationFee += Math.max(0, totalAmt - refund);
+        }
       }
     });
 
-    // Doanh thu thuc nhan rong
-    const netRevenue = Math.max(0, grossValue - voucherTotal - refundedTotal + cancellationFee);
+    // Doanh thu thuc nhan rong (phan phi giu cho khi huy da nam trong tong thu - hoan tra, khong cong dup)
+    const netRevenue = Math.max(0, grossValue - voucherTotal - refundedTotal);
 
-    // Ty le lap day thuc te: (Tong gio book / (30 san * 16.5 gio mo cua)) * 100
-    const totalDailyCapacity = 30 * 16.5;
-    const occupancyRate = totalDailyCapacity > 0 
-      ? Math.min(100, Math.round((totalBookedHours / totalDailyCapacity) * 100)) 
-      : 0;
+    const totalCourts = courts.length || 30;
+    const totalDailyCapacity = totalCourts * 16.5;
+    const occupancyRate =
+      totalDailyCapacity > 0
+        ? Math.min(100, Math.round((totalBookedHours / totalDailyCapacity) * 100))
+        : 0;
 
     return {
       grossValue,
@@ -362,7 +445,7 @@ export default function TrangQuanTriAdmin({ nguoiDung }) {
       cancellationFee,
       addonServicesTotal,
       netRevenue,
-      totalBookings: bookings.length,
+      totalBookings: bookingsTheoChuKy.length,
       pendingCount,
       paidCount,
       checkedInCount,
@@ -370,7 +453,7 @@ export default function TrangQuanTriAdmin({ nguoiDung }) {
       cancelledCount,
       occupancyRate
     };
-  }, [bookings]);
+  }, [bookingsTheoChuKy, courts.length]);
 
   // Thong ke san theo 3 co so
   const thongKe3CoSo = useMemo(() => {
@@ -395,7 +478,7 @@ export default function TrangQuanTriAdmin({ nguoiDung }) {
       },
       {
         id: 3,
-        name: 'Cơ Sở 3 (Hà Đông)',
+        name: 'Cơ Sở 3 (Long Biên)',
         total: cs3.length || 10,
         active: cs3.filter(c => c.status === 'ACTIVE').length,
         maintenance: cs3.filter(c => c.status === 'MAINTENANCE' || c.status === 'INACTIVE').length
@@ -427,14 +510,12 @@ export default function TrangQuanTriAdmin({ nguoiDung }) {
   }, [users, userRoleFilter, userSearch]);
 
   return (
-    <div className={`min-h-screen transition-colors duration-200 ${isDark ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-800'}`}>
+    <div className="min-h-screen bg-slate-50 text-slate-800">
       
       {/* ========================================================= */}
-      {/* THANH HEADER DUY NHAT (ANH 2 - KHONG CON TRUNG LAP TAB)   */}
+      {/* THANH HEADER DUY NHAT (KHONG CO DARK MODE, CO THONG BAO & DANG XUAT) */}
       {/* ========================================================= */}
-      <header className={`sticky top-0 z-40 border-b backdrop-blur-md transition-colors ${
-        isDark ? 'bg-slate-900/95 border-slate-800' : 'bg-white/95 border-slate-200 shadow-sm'
-      }`}>
+      <header className="sticky top-0 z-40 border-b backdrop-blur-md bg-white/95 border-slate-200 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
           
           {/* Logo & Brand (Anh 2) */}
@@ -492,48 +573,108 @@ export default function TrangQuanTriAdmin({ nguoiDung }) {
             </button>
           </nav>
 
-          {/* Tien ich ben phai (Anh 2) */}
+          {/* Tien ich ben phai: Lam moi, Chuong thong bao realtime, Profile & Dang xuat */}
           <div className="flex items-center gap-2.5">
             <button
-              onClick={taiDuLieuHeThong}
+              onClick={() => {
+                taiDuLieuHeThong();
+                taiThongBaoAdmin();
+              }}
               disabled={refreshing}
-              className={`p-2 rounded-xl border transition ${
-                isDark ? 'border-slate-800 hover:bg-slate-800 text-slate-300' : 'border-slate-200 hover:bg-slate-100 text-slate-600'
-              }`}
+              className="p-2 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-600 transition cursor-pointer"
               title="Làm mới dữ liệu từ Database"
             >
               <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin text-rose-600' : ''}`} />
             </button>
 
-            <button
-              onClick={() => setIsDark(!isDark)}
-              className={`p-2 rounded-xl border transition ${
-                isDark ? 'border-slate-800 hover:bg-slate-800 text-amber-400' : 'border-slate-200 hover:bg-slate-100 text-slate-600'
-              }`}
-              title="Chuyển chế độ Sáng / Tối"
-            >
-              {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-            </button>
+            {/* Chuong Thong Bao Realtime Admin */}
+            <div className="relative" ref={dropdownThongBaoRef}>
+              <button
+                type="button"
+                onClick={() => setHienDropdownThongBao((prev) => !prev)}
+                className="relative p-2 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-600 transition cursor-pointer"
+                title="Thông báo vận hành (đặt sân, hủy vé, check-in)"
+              >
+                <Bell className="w-4 h-4" />
+                {soThongBaoChuaDoc > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-600 text-white text-[10px] font-black flex items-center justify-center shadow">
+                    {soThongBaoChuaDoc > 9 ? '9+' : soThongBaoChuaDoc}
+                  </span>
+                )}
+              </button>
+
+              {hienDropdownThongBao && (
+                <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-slate-200/80 overflow-hidden z-50">
+                  <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
+                    <div>
+                      <h4 className="text-xs font-black text-slate-900">Thông báo vận hành</h4>
+                      <p className="text-[11px] text-slate-500">Đặt sân mới, hủy vé hoàn tiền & check-in</p>
+                    </div>
+                    {soThongBaoChuaDoc > 0 && (
+                      <button
+                        type="button"
+                        onClick={danhDauDaDocTatCa}
+                        className="text-[11px] font-bold text-rose-600 hover:underline cursor-pointer"
+                      >
+                        Đánh dấu đã đọc
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="max-h-80 overflow-y-auto divide-y divide-slate-100">
+                    {thongBaoList.length === 0 ? (
+                      <div className="py-8 text-center text-xs text-slate-400 font-semibold">
+                        Chưa có thông báo vận hành nào
+                      </div>
+                    ) : (
+                      thongBaoList.slice(0, 12).map((tb) => (
+                        <div
+                          key={tb.id}
+                          className={`px-4 py-3 text-left transition ${
+                            tb.isRead ? 'bg-white' : 'bg-rose-50/50'
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="text-xs font-black text-slate-900 leading-snug">{tb.title}</p>
+                            {!tb.isRead && (
+                              <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0 mt-1" />
+                            )}
+                          </div>
+                          <p className="text-[11px] text-slate-600 mt-0.5 leading-relaxed">{tb.message}</p>
+                          {tb.createdAt && (
+                            <span className="block text-[10px] text-slate-400 mt-1">
+                              {new Date(tb.createdAt).toLocaleString('vi-VN')}
+                            </span>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* Profile Pill */}
-            <div className={`flex items-center gap-2.5 px-3 py-1.5 rounded-xl border ${
-              isDark ? 'bg-slate-900 border-slate-800' : 'bg-slate-100 border-slate-200'
-            }`}>
+            <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl border bg-slate-100 border-slate-200">
               <div className="w-6 h-6 rounded-lg bg-rose-600 text-white font-bold text-xs flex items-center justify-center">
                 A
               </div>
               <div className="text-left hidden sm:block">
                 <p className="text-xs font-bold leading-none">{nguoiDung?.fullName || 'Chủ Hệ Thống'}</p>
-                <span className="text-[10px] text-rose-600 font-extrabold uppercase">SUPER ADMIN</span>
+                <span className="text-[10px] text-rose-600 font-extrabold uppercase">ADMIN</span>
               </div>
-              <Link 
-                to="/" 
-                className="ml-1 p-1 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition"
-                title="Về giao diện đặt sân khách hàng"
-              >
-                <ExternalLink className="w-3.5 h-3.5" />
-              </Link>
             </div>
+
+            {/* Nut Dang Xuat */}
+            <button
+              type="button"
+              onClick={xuLyDangXuatAdmin}
+              className="px-3 py-2 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-black transition flex items-center gap-1.5 cursor-pointer"
+              title="Đăng xuất tài khoản quản trị"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Đăng xuất</span>
+            </button>
           </div>
 
         </div>
@@ -691,12 +832,12 @@ export default function TrangQuanTriAdmin({ nguoiDung }) {
                       <span className="font-black">-{thongKeThucTe.refundedTotal.toLocaleString('vi-VN')} đ</span>
                     </div>
                     <div className="py-2.5 flex items-center justify-between text-emerald-600">
-                      <span className="font-bold">4. (+) Phí Phạt Giữ Chỗ Thu Được Khi Hủy</span>
-                      <span className="font-black">+{thongKeThucTe.cancellationFee.toLocaleString('vi-VN')} đ</span>
+                      <span className="font-bold">4. (Ghi chú) Phí Giữ Chỗ Thu Được Từ Đơn Hủy</span>
+                      <span className="font-black">{thongKeThucTe.cancellationFee.toLocaleString('vi-VN')} đ</span>
                     </div>
                     <div className="py-2.5 flex items-center justify-between text-indigo-600">
-                      <span className="font-bold">5. (+) Doanh Thu Dịch Vụ Tiếp Tế Tận Sân</span>
-                      <span className="font-black">+{thongKeThucTe.addonServicesTotal.toLocaleString('vi-VN')} đ</span>
+                      <span className="font-bold">5. (Trong đó) Doanh Thu Dịch Vụ Kèm Theo</span>
+                      <span className="font-black">{thongKeThucTe.addonServicesTotal.toLocaleString('vi-VN')} đ</span>
                     </div>
                     <div className="py-3.5 flex items-center justify-between bg-emerald-50/60 dark:bg-emerald-950/20 px-3.5 rounded-2xl border border-emerald-200/80 dark:border-emerald-800/80 mt-2">
                       <span className="text-xs font-black text-emerald-900 dark:text-emerald-200">
@@ -787,12 +928,12 @@ export default function TrangQuanTriAdmin({ nguoiDung }) {
                       <Activity className="w-4 h-4 text-rose-600" />
                       <span>Nhật Ký Giao Dịch</span>
                     </h2>
-                    <span className="text-[10px] font-bold text-slate-400">{bookings.length} giao dịch</span>
+                    <span className="text-[10px] font-bold text-slate-400">{bookingsTheoChuKy.length} giao dịch</span>
                   </div>
 
-                  {bookings.length === 0 ? (
+                  {bookingsTheoChuKy.length === 0 ? (
                     <div className="py-10 text-center text-slate-400 space-y-2">
-                      <Inbox className="w-8 h-8 mx-auto text-slate-300 dark:text-slate-700" />
+                      <Inbox className="w-8 h-8 mx-auto text-slate-300" />
                       <p className="text-xs font-bold text-slate-500">Chưa có giao dịch phát sinh</p>
                       <p className="text-[11px] text-slate-400 max-w-[240px] mx-auto">
                         Khi có khách đặt sân, thanh toán hoặc check-in mới, sự kiện thực tế sẽ tự động hiển thị tại đây.
@@ -800,27 +941,31 @@ export default function TrangQuanTriAdmin({ nguoiDung }) {
                     </div>
                   ) : (
                     <div className="space-y-2.5 max-h-[300px] overflow-y-auto pr-1">
-                      {bookings.slice(0, 8).map(b => (
-                        <div key={b.id} className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 text-xs">
+                      {bookingsTheoChuKy.slice(0, 8).map(b => (
+                        <div key={b.id} className="p-3 rounded-2xl bg-slate-50 border border-slate-100 text-xs">
                           <div className="flex items-center justify-between mb-1">
-                            <span className="font-black text-slate-900 dark:text-white">
+                            <span className="font-black text-slate-900">
                               Đơn #{b.id}
                             </span>
                             <span className={`px-2 py-0.5 rounded text-[10px] font-black ${
                               b.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-800' :
-                              b.status === 'PAID' ? 'bg-indigo-100 text-indigo-800' :
+                              (b.status === 'CONFIRMED' || b.status === 'PAID') ? 'bg-indigo-100 text-indigo-800' :
                               b.status === 'CHECKED_IN' ? 'bg-amber-100 text-amber-800' :
-                              b.status === 'CANCELLED' ? 'bg-rose-100 text-rose-800' :
+                              (b.status === 'CANCELLED' || b.status === 'CANCELLED_REFUNDED') ? 'bg-rose-100 text-rose-800' :
                               'bg-slate-100 text-slate-700'
                             }`}>
-                              {b.status}
+                              {b.status === 'COMPLETED' ? 'Hoàn tất quy trình' :
+                               (b.status === 'CONFIRMED' || b.status === 'PAID') ? 'Đã thanh toán' :
+                               b.status === 'CHECKED_IN' ? 'Đang sử dụng' :
+                               (b.status === 'CANCELLED' || b.status === 'CANCELLED_REFUNDED') ? 'Đã hủy' :
+                               'Chờ thanh toán'}
                             </span>
                           </div>
                           <p className="text-[11px] text-slate-500 line-clamp-1">{b.courtName || b.courtCode || 'Sân thể thao'}</p>
-                          <div className="flex items-center justify-between mt-2 pt-1 border-t border-slate-200/50 dark:border-slate-700/50">
+                          <div className="flex items-center justify-between mt-2 pt-1 border-t border-slate-200/50">
                             <span className="text-[10px] text-slate-400">Khách #{b.customerId}</span>
-                            <span className="font-black text-slate-900 dark:text-white">
-                              {Number(b.totalPrice || 0).toLocaleString('vi-VN')} đ
+                            <span className="font-black text-slate-900">
+                              {Number(b.totalAmount ?? b.totalPrice ?? 0).toLocaleString('vi-VN')} đ
                             </span>
                           </div>
                         </div>
@@ -904,7 +1049,7 @@ export default function TrangQuanTriAdmin({ nguoiDung }) {
                       <option value="ALL">🏢 Tất cả 3 Cơ Sở</option>
                       <option value="1">Cơ Sở 1 (Cầu Giấy)</option>
                       <option value="2">Cơ Sở 2 (Đống Đa)</option>
-                      <option value="3">Cơ Sở 3 (Hà Đông)</option>
+                      <option value="3">Cơ Sở 3 (Long Biên)</option>
                     </select>
 
                     <select
@@ -1133,7 +1278,10 @@ export default function TrangQuanTriAdmin({ nguoiDung }) {
                         {filteredUsers.map(user => {
                           const isLocked = user.status === 'LOCKED';
                           const isCurrent = nguoiDung?.id === user.id;
-                          const isCore = ['admin@esportking.vn', 'staff_cs1@esportking.vn', 'staff_cs2@esportking.vn', 'staff_cs3@esportking.vn', 'customer@esportking.vn'].includes((user.email || '').toLowerCase());
+                          const isCore = TAI_KHOAN_MAC_DINH
+                            .flatMap(t => [t.email, t.legacyEmail].filter(Boolean))
+                            .map(e => e.toLowerCase())
+                            .includes((user.email || '').toLowerCase());
 
                           return (
                             <tr key={user.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition">
@@ -1245,271 +1393,25 @@ export default function TrangQuanTriAdmin({ nguoiDung }) {
 
       </main>
 
-      {/* ========================================================= */}
-      {/* CAC MODAL THAO TAC                                        */}
-      {/* ========================================================= */}
-
-      {/* Modal Chinh Sua Gia San */}
-      {modalEditCourtPrice && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 max-w-md w-full border border-slate-200 dark:border-slate-800 shadow-2xl animate-in zoom-in-95">
-            <h3 className="text-base font-black text-slate-900 dark:text-white mb-2">
-              Chỉnh Sửa Giá Thuê Sân
-            </h3>
-            <p className="text-xs text-slate-500 mb-4">
-              Sân: <strong className="text-slate-800 dark:text-slate-200">{modalEditCourtPrice.name}</strong> ({modalEditCourtPrice.courtCode})
-            </p>
-
-            <div className="space-y-3">
-              <div>
-                <label className="text-xs font-bold text-slate-600 dark:text-slate-400 block mb-1">
-                  Đơn giá mới (VNĐ / giờ):
-                </label>
-                <input
-                  type="number"
-                  step="10000"
-                  value={newPriceInput}
-                  onChange={(e) => setNewPriceInput(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-black text-rose-600 focus:outline-none focus:ring-2 focus:ring-rose-500"
-                />
-              </div>
-
-              <div className="flex items-center gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setModalEditCourtPrice(null)}
-                  className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
-                >
-                  Hủy Bỏ
-                </button>
-                <button
-                  type="button"
-                  onClick={handleLuuGiaSan}
-                  className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-black shadow-md shadow-rose-600/30 transition cursor-pointer"
-                >
-                  Lưu Giá Mới
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal Xac Nhan Khoa / Mo Khoa San */}
-      {modalConfirmLockCourt && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 max-w-sm w-full border border-slate-200 dark:border-slate-800 shadow-2xl text-center">
-            <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-600 flex items-center justify-center mx-auto mb-3">
-              <AlertTriangle className="w-6 h-6" />
-            </div>
-            <h3 className="text-base font-black text-slate-900 dark:text-white mb-1">
-              {modalConfirmLockCourt.status === 'ACTIVE' ? 'Xác Nhận Khóa Sân?' : 'Mở Khóa Hoạt Động Sân?'}
-            </h3>
-            <p className="text-xs text-slate-500 mb-5">
-              {modalConfirmLockCourt.status === 'ACTIVE'
-                ? `Khóa sân [${modalConfirmLockCourt.name}] sẽ chuyển trạng thái sang Bảo trì. Phía giao diện khách hàng sẽ hiển thị nhãn bảo trì và chặn đặt slot.`
-                : `Sân [${modalConfirmLockCourt.name}] sẽ mở lại cho khách hàng đặt slot bình thường.`
-              }
-            </p>
-
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setModalConfirmLockCourt(null)}
-                className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
-              >
-                Hủy
-              </button>
-              <button
-                onClick={handleXacNhanKhoaSan}
-                className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-black shadow-md shadow-rose-600/30 transition cursor-pointer"
-              >
-                Xác Nhận
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal Them / Sua Nguoi Dung */}
-      {modalUserForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 max-w-md w-full border border-slate-200 dark:border-slate-800 shadow-2xl">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-base font-black text-slate-900 dark:text-white">
-                {modalUserForm.mode === 'create' ? 'Tạo Tài Khoản Mới' : 'Cập Nhật Thông Tin Tài Khoản'}
-              </h3>
-              <button
-                onClick={() => setModalUserForm(null)}
-                className="p-1 text-slate-400 hover:text-slate-600 cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleLuuUserForm} className="space-y-3.5 text-xs">
-              <div>
-                <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">Họ và tên *</label>
-                <input
-                  type="text"
-                  required
-                  value={modalUserForm.data.fullName || ''}
-                  onChange={(e) => setModalUserForm({
-                    ...modalUserForm,
-                    data: { ...modalUserForm.data, fullName: e.target.value }
-                  })}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-rose-500"
-                />
-              </div>
-
-              {modalUserForm.mode === 'create' && (
-                <div>
-                  <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">Email đăng nhập *</label>
-                  <input
-                    type="email"
-                    required
-                    value={modalUserForm.data.email || ''}
-                    onChange={(e) => setModalUserForm({
-                      ...modalUserForm,
-                      data: { ...modalUserForm.data, email: e.target.value }
-                    })}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-rose-500"
-                  />
-                </div>
-              )}
-
-              <div>
-                <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">Số điện thoại</label>
-                <input
-                  type="tel"
-                  value={modalUserForm.data.phone || ''}
-                  onChange={(e) => setModalUserForm({
-                    ...modalUserForm,
-                    data: { ...modalUserForm.data, phone: e.target.value }
-                  })}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-rose-500"
-                />
-              </div>
-
-              {modalUserForm.mode === 'create' && (
-                <div>
-                  <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">Mật khẩu khởi tạo</label>
-                  <input
-                    type="password"
-                    placeholder="Mặc định: Password@123"
-                    value={modalUserForm.data.password || ''}
-                    onChange={(e) => setModalUserForm({
-                      ...modalUserForm,
-                      data: { ...modalUserForm.data, password: e.target.value }
-                    })}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-rose-500"
-                  />
-                </div>
-              )}
-
-              <div>
-                <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">Phân quyền vai trò</label>
-                <select
-                  value={modalUserForm.data.role || 'CUSTOMER'}
-                  onChange={(e) => setModalUserForm({
-                    ...modalUserForm,
-                    data: { ...modalUserForm.data, role: e.target.value }
-                  })}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold focus:outline-none focus:ring-2 focus:ring-rose-500"
-                >
-                  <option value="CUSTOMER">👤 CUSTOMER (Khách Hàng Đặt Sân)</option>
-                  <option value="STAFF">⚡ STAFF (Nhân Viên Trực Ban Quầy)</option>
-                  <option value="ADMIN">🛡️ ADMIN (Quản Trị Viên Hệ Thống)</option>
-                </select>
-              </div>
-
-              <div className="flex items-center gap-2 pt-3">
-                <button
-                  type="button"
-                  onClick={() => setModalUserForm(null)}
-                  className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
-                >
-                  Hủy
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-black shadow-md shadow-rose-600/30 transition cursor-pointer"
-                >
-                  {modalUserForm.mode === 'create' ? 'Tạo Tài Khoản' : 'Lưu Thay Đổi'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Modal Xac Nhan Khoa / Mo Khoa User */}
-      {modalConfirmLockUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 max-w-sm w-full border border-slate-200 dark:border-slate-800 shadow-2xl text-center">
-            <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-600 flex items-center justify-center mx-auto mb-3">
-              <Lock className="w-6 h-6" />
-            </div>
-            <h3 className="text-base font-black text-slate-900 dark:text-white mb-1">
-              {modalConfirmLockUser.status === 'ACTIVE' ? 'Khóa Tài Khoản Này?' : 'Mở Khóa Tài Khoản?'}
-            </h3>
-            <p className="text-xs text-slate-500 mb-5">
-              Tài khoản: <strong>{modalConfirmLockUser.email}</strong>
-              <br />
-              {modalConfirmLockUser.status === 'ACTIVE'
-                ? 'Người dùng này sẽ không thể đăng nhập và mọi phiên làm việc hiện tại sẽ bị hủy ngay.'
-                : 'Người dùng sẽ có thể đăng nhập lại bình thường.'
-              }
-            </p>
-
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setModalConfirmLockUser(null)}
-                className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
-              >
-                Hủy
-              </button>
-              <button
-                onClick={handleXacNhanKhoaUser}
-                className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-black shadow-md shadow-rose-600/30 transition cursor-pointer"
-              >
-                Xác Nhận
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal Xac Nhan Xoa User */}
-      {modalConfirmDeleteUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 max-w-sm w-full border border-slate-200 dark:border-slate-800 shadow-2xl text-center">
-            <div className="w-12 h-12 rounded-2xl bg-rose-500/10 text-rose-600 flex items-center justify-center mx-auto mb-3">
-              <Trash2 className="w-6 h-6" />
-            </div>
-            <h3 className="text-base font-black text-slate-900 dark:text-white mb-1">
-              Xóa Vĩnh Viễn Tài Khoản?
-            </h3>
-            <p className="text-xs text-slate-500 mb-5">
-              Bạn có chắc chắn muốn xóa tài khoản <strong>{modalConfirmDeleteUser.email}</strong>? Hành động này không thể hoàn tác.
-            </p>
-
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setModalConfirmDeleteUser(null)}
-                className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
-              >
-                Hủy
-              </button>
-              <button
-                onClick={handleXoaUser}
-                className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-black shadow-md shadow-rose-600/30 transition cursor-pointer"
-              >
-                Xác Nhận Xóa
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <CacModalAdmin
+        modalEditCourtPrice={modalEditCourtPrice}
+        setModalEditCourtPrice={setModalEditCourtPrice}
+        newPriceInput={newPriceInput}
+        setNewPriceInput={setNewPriceInput}
+        handleLuuGiaSan={handleLuuGiaSan}
+        modalConfirmLockCourt={modalConfirmLockCourt}
+        setModalConfirmLockCourt={setModalConfirmLockCourt}
+        handleXacNhanKhoaSan={handleXacNhanKhoaSan}
+        modalUserForm={modalUserForm}
+        setModalUserForm={setModalUserForm}
+        handleLuuUserForm={handleLuuUserForm}
+        modalConfirmLockUser={modalConfirmLockUser}
+        setModalConfirmLockUser={setModalConfirmLockUser}
+        handleXacNhanKhoaUser={handleXacNhanKhoaUser}
+        modalConfirmDeleteUser={modalConfirmDeleteUser}
+        setModalConfirmDeleteUser={setModalConfirmDeleteUser}
+        handleXoaUser={handleXoaUser}
+      />
 
     </div>
   );

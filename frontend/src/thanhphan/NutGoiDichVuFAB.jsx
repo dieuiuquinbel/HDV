@@ -71,10 +71,12 @@ const FAQ_CO_SAN = [
   {
     keys: ['hủy & hoàn tiền', 'hủy sân', 'hoàn tiền', 'refund'],
     reply:
-      'Chính sách Hủy sân & Hoàn tiền:\n' +
+      'Chính sách Hủy sân & Hoàn tiền ESportKing:\n' +
       '• Vào mục "Đặt sân của tôi" -> bấm "Hủy & Hoàn tiền" trên đơn chưa check-in.\n' +
-      '• Hệ thống tự động hoàn 50% giá trị đơn ngay lập tức vào Ví SportPay.\n' +
-      '• Tiền trong ví có thể dùng đặt sân lần sau hoặc rút về ngân hàng.'
+      '• Trước >= 12 giờ: Hoàn 100% vào Ví SportPay.\n' +
+      '• Từ 5 giờ đến dưới 12 giờ: Hoàn 80% vào Ví SportPay.\n' +
+      '• Dưới 5 giờ trước giờ chơi: Hoàn 50% vào Ví SportPay.\n' +
+      '• Tiền hoàn cộng ngay vào ví, dùng đặt lại hoặc rút về ngân hàng bất kỳ lúc nào.'
   },
   {
     keys: ['địa chỉ 3 cơ sở', 'địa chỉ', '3 cơ sở', 'ở đâu'],

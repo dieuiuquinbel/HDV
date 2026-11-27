@@ -1,21 +1,21 @@
 # ESportKing — Báo Cáo Tiến Độ Phát Triển & Kịch Bản Báo Cáo Đồ Án
 > **Tài liệu Nghiệm thu Đồ án Môn học: Phát Triển Phần Mềm Hướng Dịch Vụ (SOA & Microservices)**  
 > **Đề tài:** Nền tảng Đặt sân thể thao thông minh ESportKing  
-> **Cập nhật:** 11/2026 — Phiên bản nghiệm thu hoàn chỉnh 100%
+> **Cập nhật:** 25/11/2026 — Phiên bản nghiệm thu hoàn chỉnh 100% (v2.1)
 
 ---
 
 ## MỤC LỤC
-1. [Lịch Trình Hoàn Thành Qua 4 Giai Đoạn Phát Triển](#1-lịch-trình-hoàn-thành-qua-4-giai-đoạn-phát-triển)
+1. [Lịch Trình Hoàn Thành Qua 5 Giai Đoạn Phát Triển](#1-lịch-trình-hoàn-thành-qua-5-giai-đoạn-phát-triển)
 2. [Bảng Đối Chiếu Tiêu Chuẩn Nghiệm Thu Đồ Án SOA](#2-bảng-đối-chiếu-tiêu-chuẩn-nghiệm-thu-đồ-án-soa)
 3. [Kịch Bản 7 Bước Demo Bảo Vệ Trước Hội Đồng](#3-kịch-bản-7-bước-demo-bảo-vệ-trước-hội-đồng)
 4. [Bằng Chứng Kiểm Thử & Trạng Thái Biên Dịch Hệ Thống](#4-bằng-chứng-kiểm-thử--trạng-thái-biên-dịch-hệ-thống)
 
 ---
 
-## 1. Lịch Trình Hoàn Thành Qua 4 Giai Đoạn Phát Triển
+## 1. Lịch Trình Hoàn Thành Qua 5 Giai Đoạn Phát Triển
 
-Hệ thống đã trải qua quá trình phát triển, nâng cấp và tinh chỉnh qua **4 giai đoạn trọng tâm**:
+Hệ thống đã trải qua quá trình phát triển, nâng cấp và tinh chỉnh qua **5 giai đoạn trọng tâm**:
 
 ```mermaid
 timeline
@@ -23,7 +23,8 @@ timeline
     Giai Đoạn 1 : Khởi tạo Microservices Core : Đa module Maven : 5 Database Schemas : API Gateway & JWT
     Giai Đoạn 2 : Chuẩn hóa Nghiệp vụ : 3 Cơ sở Hà Nội : 30 Sân thi đấu : Lưới slot 30 phút : Check-in QR HMAC
     Giai Đoạn 3 : Vá Lỗi & Tinh Giản : Loại bỏ Review Service : Xử lý Race Condition Callback : Chống CSRF
-    Giai Đoạn 4 : Hoàn thiện Đột phá : Ví điện tử SportPay : Rút tiền demo NH : Hoàn tiền 12h (100%/80%) : Chuông In-App
+    Giai Đoạn 4 : Ví SportPay & Hoàn tiền : Ví điện tử SportPay : Rút tiền demo NH : Hoàn tiền (100%/80%/50%) : Chuông In-App
+    Giai Đoạn 5 : Hạ tầng Phân tán, AI & Clean Code : Redis & RabbitMQ : Trợ lý AI 2-trong-1 : Phục vụ tại sân : Quét rác & Clean Code
 ```
 
 ---
@@ -88,18 +89,40 @@ timeline
 
 ---
 
+### 🔹 GIAI ĐOẠN 5: Hạ Tầng Phân Tán (Redis & RabbitMQ), Trợ Lý AI 2-Trong-1 & Clean Code Nghiệm Thu
+* **Mục tiêu:** Hoàn thiện các thành phần phân tán chuyên sâu (Caching + Async Messaging), nâng tầm trải nghiệm thông minh (AI & Phục vụ tại sân) và tổng vệ sinh mã nguồn trước khi bảo vệ.
+* **Những công việc đã hoàn thành:**
+  1. **Tích hợp Redis & RabbitMQ:**
+     * Bổ sung **Redis 7** làm bộ nhớ đệm xác thực thu hồi token (`Token Revocation`) giữa `api-gateway` và `user-service`.
+     * Bổ sung **RabbitMQ 3.13** cho luồng gửi thông báo bất đồng bộ từ `booking-service` & `payment-service` sang `notification-service` (kèm cơ chế fallback REST khi chạy local).
+  2. **Trợ Lý AI 2-trong-1 & Yêu Cầu Phục Vụ Tại Sân:**
+     * Xây dựng `DichVuTroLyAi.java` + `DieuKhienTroLyAi.java` tích hợp Gemini API (`gemini-3.8-flash` / fallback `gemini-3.6-flash`), áp dụng guardrails chống Prompt/SQL Injection và lọc che khóa bí mật ở đầu ra.
+     * Thiết kế Widget nổi linh vật mèo (`ai-mascot.webp`, 72×72px) có thể kéo thả, giải đáp FAQ tức thì không cần gọi AI và tích hợp gọi dịch vụ tại sân (`service_requests`).
+     * Tách 2 tab chuẩn cho nhân viên trực ban tại `/checkin` (Quét QR Check-in & Xử lý yêu cầu phục vụ tại sân), khóa phạm vi cơ sở theo tài khoản Staff và siết chặt Role Route Guards.
+  3. **Nâng cấp UI/UX & Ví SportPay:**
+     * Nâng cấp `ModalViDienTu.jsx` dùng React Portal (hết kẹt modal) và bổ sung tính năng **Nạp tiền qua VietQR**.
+     * Chuẩn hóa toàn bộ hình ảnh thực tế cho 30 sân, tự động chuyển mặc định sang Ngày mai khi hôm nay hết slot, tách minh bạch giá sân cơ bản và phụ phí giờ vàng/đèn LED.
+  4. **Clean Code & Dọn Rác Toàn Hệ Thống (25/11/2026):**
+     * Xóa thư mục rác `.github/modernize/`, dọn 9 file log rỗng trong `logs/`.
+     * Xóa class thừa `TraVeLoiChuan.java` ở `notification-service`, loại bỏ các import thừa và method repository không dùng trên toàn bộ 6 backend services.
+     * Xóa **55 import không sử dụng** trên 9 file JSX tại `frontend/src`.
+     * Chuẩn hóa `reset_demo_data.bat` (đồng bộ ID tài khoản `1..5` và dọn sạch `service_requests`).
+
+---
+
 ## 2. Bảng Đối Chiếu Tiêu Chuẩn Nghiệm Thu Đồ Án SOA
 
 | Tiêu Chuẩn Giảng Viên / Hội Đồng Yêu Cầu | Mức Độ Đáp Ứng Của ESportKing | Minh Chứng Trong Mã Nguồn |
 |---|:---:|---|
 | **Tối thiểu 3–4 Microservices độc lập** | **VƯỢT TRỘI (6 Services)** | `api-gateway`, `user-service`, `court-service`, `booking-service`, `payment-service`, `notification-service`. |
 | **Mỗi dịch vụ sở hữu Database riêng** | **ĐẠT 100%** | 5 schema riêng biệt: `user_db`, `court_db`, `booking_db`, `payment_db`, `notification_db`. |
+| **Giao tiếp Bất đồng bộ & Caching phân tán** | **ĐẠT 100%** | **RabbitMQ** (Async Notification Queue) + **Redis** (Token Revocation Cache tại Gateway & User Service). |
 | **Có API Gateway làm Single Entrypoint** | **ĐẠT 100%** | Spring Cloud Gateway (Port 8080), strip-prefix, CORS, CSRF, Token decode. |
-| **Bảo mật JWT, Phân quyền RBAC & Mã hóa** | **ĐẠT 100%** | 4 vai trò (CUSTOMER, STAFF, OWNER, ADMIN), mã hóa BCrypt, JWT HttpOnly, OTP timeout. |
+| **Bảo mật JWT, Phân quyền RBAC & Mã hóa** | **ĐẠT 100%** | 4 vai trò (CUSTOMER, STAFF, OWNER, ADMIN), Role Route Guards, BCrypt, JWT HttpOnly, OTP timeout, AI Injection Guardrails. |
 | **Tài liệu API Docs tự động (Swagger/OpenAPI)** | **ĐẠT 100%** | Tích hợp `springdoc-openapi` tại route `/swagger-ui.html` trên từng service. |
-| **Quản lý Migration Cơ sở dữ liệu tự động** | **ĐẠT 100%** | Tích hợp Flyway Migration (`V1`, `V2`, `V3`, `V4...`) trong tất cả các service nghiệp vụ. |
-| **Khả năng đóng gói & Chạy bằng Docker Compose** | **ĐẠT 100%** | Tệp `docker-compose.yml` và Dockerfile đa tầng độc lập cho từng service. |
-| **Trải nghiệm Frontend SPA hoàn chỉnh** | **ĐẠT 100%** | React 18, Vite, Tailwind CSS, Responsive Mobile/Desktop, âm thanh chuông Web Audio API. |
+| **Quản lý Migration Cơ sở dữ liệu tự động** | **ĐẠT 100%** | Tích hợp Flyway Migration (`V1`–`V5`) trong tất cả các service nghiệp vụ. |
+| **Khả năng đóng gói & Chạy bằng Docker Compose** | **ĐẠT 100%** | Tệp `docker-compose.yml` điều phối **10 container** (MySQL, Redis, RabbitMQ, 6 services, Frontend) và Dockerfile độc lập. |
+| **Trải nghiệm Frontend SPA hoàn chỉnh** | **ĐẠT 100%** | React 18, Vite, Tailwind CSS, Trợ lý AI 2-trong-1, Responsive Mobile/Desktop, âm thanh chuông Web Audio API. |
 
 ---
 
@@ -129,7 +152,7 @@ timeline
 * Âm thanh chuông *"Ting! 🔔"* vang lên, đơn đặt sân chuyển ngay sang trạng thái `CONFIRMED` và sinh mã QR Check-in.
 
 ### 🔹 Bước 5: Mở Trạm Check-in Trực Ban Quét Mã Nhận Sân (1.5 Phút)
-* Mở một tab trình duyệt ẩn danh (hoặc đăng nhập tài khoản nhân viên `staff_cs1@esportking.vn` / `123456`).
+* Mở một tab trình duyệt ẩn danh (hoặc đăng nhập tài khoản nhân viên `staff1` / `staff123` — hoặc 1-Click Login trên trang đăng nhập).
 * Truy cập tab **"Trạm Check-In QR"**.
 * Quét mã QR hoặc nhập Token từ vé của khách hàng:
   * Hệ thống kiểm tra đúng cơ sở Cầu Giấy $\rightarrow$ Báo **Check-in Thành Công**, chuông ting vang lên, vé đổi sang `CHECKED_IN` và **tiếp tục giữ nguyên slot lock**.
@@ -137,11 +160,10 @@ timeline
 * Bấm **"Xác nhận trả sân"** $\rightarrow$ Vé chuyển sang `COMPLETED`, slot lock được giải phóng.
 
 ### 🔹 Bước 6: Kiểm Chứng Chính Sách Hủy Đơn & Hoàn Tiền Vào Ví (1.5 Phút)
-* Trở lại tài khoản khách hàng, tạo một đơn đặt sân mới và thanh toán.
+* Trở lại tài khoản khách hàng (`customer` / `customer123`), tạo một đơn đặt sân mới và thanh toán.
 * Mở trang **"Đặt Sân Của Tôi"**, bấm nút **"Hủy & Hoàn Tiền"**:
-  * Hộp thoại tính toán thời gian xuất hiện rõ ràng: Báo trước tỷ lệ hoàn theo Time-window Policy (100% nếu trước $\ge 24$h, 50% nếu từ 12-24h, 0% nếu sát giờ $< 12$h).
-  * Bấm xác nhận $\rightarrow$ Đơn hủy thành công, tiền hoàn được cộng thẳng vào Ví SportPay sau 1 giây.
-  * Chỉ vào chuông thông báo: Xuất hiện tin nhắn hoàn tiền mới nhất.
+  * **Popup riêng `ModalHuyHoanTien`** bật ra với animation mượt: Đếm ngược thời gian thực tới giờ thi đấu, highlight đúng mốc hoàn tiền (**100%** nếu trước $\ge 12$h, **80%** nếu từ 5–12h, **50%** nếu dưới 5h) và bảng tính minh bạch số tiền thực nhận.
+  * Bấm **"Xác nhận hủy vé"** $\rightarrow$ Chuyển cảnh sang màn hình thành công có hiệu ứng pháo hoa + bộ đếm số tiền hoàn tăng dần, tiền được cộng thẳng vào Ví SportPay và hiện thông báo mới trên chuông.
 
 ### 🔹 Bước 7: Trải Nghiệm Form Rút Tiền Demo Về Ngân Hàng (1.5 Phút)
 * Bấm vào Pill Ví SportPay trên thanh điều hướng để mở **Modal Ví**.
@@ -167,8 +189,8 @@ timeline
   * `booking-service/target/booking-service-1.0.0-SNAPSHOT.jar`
   * `payment-service/target/payment-service-1.0.0-SNAPSHOT.jar`
   * `notification-service/target/notification-service-1.0.0-SNAPSHOT.jar`
-* **Biên dịch Frontend:** Đã build thành công qua Vite mà không có bất kỳ lỗi cú pháp hay thiếu thư viện nào:
+* **Biên dịch Frontend:** Đã build thành công qua Vite sau khi dọn sạch 55 import thừa mà không có bất kỳ lỗi cú pháp hay thiếu thư viện nào:
   ```powershell
   npm run build --prefix frontend
-  # Kết quả: built in 5.11s (0 errors)
+  # Kết quả: 2134 modules transformed, built in 4.86s (0 errors)
   ```

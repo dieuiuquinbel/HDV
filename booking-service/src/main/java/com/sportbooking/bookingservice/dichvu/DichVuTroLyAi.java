@@ -64,7 +64,7 @@ public class DichVuTroLyAi {
               * CUOITUAN: Giảm 25.000đ đơn từ 150.000đ (cuối tuần).
               * VIPSPORT: Giảm 30.000đ cho đơn từ 200.000đ.
             - Thanh toán: Hỗ trợ Ví SportPay (nạp qua VietQR/Ngân hàng, có thể rút tiền) hoặc chuyển khoản VietQR trực tiếp.
-            - Hủy sân & Hoàn tiền: Khách có thể tự hủy đơn ở mục "Đặt sân của tôi" trước khi check-in, hệ thống tự động hoàn 50% tiền về Ví SportPay.
+            - Hủy sân & Hoàn tiền: Khách có thể tự hủy đơn ở mục "Đặt sân của tôi" trước giờ thi đấu, hệ thống tự động hoàn tiền ngay vào Ví SportPay: trước >= 12 giờ hoàn 100%, từ 5 đến dưới 12 giờ hoàn 80%, dưới 5 giờ hoàn 50%.
             - Check-in QR: Sau khi thanh toán thành công, khách mở mục "Đặt sân của tôi" để lấy mã QR đưa nhân viên quầy quét. Nếu đi nhầm cơ sở, hệ thống sẽ cảnh báo và chỉ đường Google Maps sang đúng cơ sở.
             - Gọi đồ ăn / nước uống / dụng cụ tại sân: Chỉ mở khóa SAU KHI đã quét QR Check-in nhận sân. Khách bấm ngay sang tab "Phục Vụ Tại Sân" ngay trong khung trợ lý này để gọi nhân viên mang ra tận sân (< 5 phút).
             - Xử lý lỗi hay gặp:
@@ -221,9 +221,11 @@ public class DichVuTroLyAi {
         if (q.contains("hủy") || q.contains("hoàn tiền") || q.contains("refund")) {
             return """
                     Chính sách Hủy sân & Hoàn tiền tại ESportKing:
-                    • Bạn vào mục "Đặt sân của tôi" -> bấm nút "Hủy & Hoàn tiền" trên đơn chưa check-in.
-                    • Hệ thống tự động hoàn 50% giá trị đơn ngay lập tức vào Ví SportPay của bạn.
-                    • Tiền trong Ví SportPay có thể dùng đặt sân lần sau hoặc rút về ngân hàng bất kỳ lúc nào.""";
+                    • Vào mục "Đặt sân của tôi" -> bấm "Hủy & Hoàn tiền" trên đơn chưa check-in.
+                    • Hủy trước >= 12 giờ: Hoàn 100% giá trị đơn vào Ví SportPay.
+                    • Hủy từ 5 giờ đến dưới 12 giờ: Hoàn 80% giá trị đơn vào Ví SportPay.
+                    • Hủy dưới 5 giờ trước giờ chơi: Hoàn 50% giá trị đơn vào Ví SportPay.
+                    • Tiền trong Ví SportPay có thể dùng đặt sân lần sau hoặc rút về ngân hàng ngay lập tức.""";
         }
 
         if (q.contains("nước") || q.contains("đồ ăn") || q.contains("phục vụ") || q.contains("tiếp tế") || q.contains("gọi đồ") || q.contains("dụng cụ")) {
@@ -282,7 +284,7 @@ public class DichVuTroLyAi {
                 Mình đã nhận được câu hỏi của bạn! Hiện mình có thể hỗ trợ nhanh các vấn đề sau tại ESportKing:
                 • Hướng dẫn đặt sân, xem giá & phụ phí giờ vàng
                 • Danh sách 3 cơ sở tại Hà Nội & mã giảm giá mới nhất
-                • Hướng dẫn thanh toán Ví SportPay, hủy sân hoàn 50% & quét QR Check-in
+                • Hướng dẫn thanh toán Ví SportPay, hủy sân hoàn tiền (100%/80%/50%) & quét QR Check-in
                 • Xử lý lỗi trong quá trình sử dụng hoặc gọi đồ ăn/nước uống tận sân (Tab "Phục Vụ Tại Sân")
                 Bạn hãy bấm 1 gợi ý bên dưới hoặc nhắn cụ thể vấn đề bạn đang gặp nhé!""";
     }

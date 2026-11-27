@@ -10,8 +10,6 @@ import com.sportbooking.userservice.dulieu.TraVeNguoiDung;
 import com.sportbooking.userservice.dulieu.YeuCauDangKy;
 import com.sportbooking.userservice.dulieu.YeuCauDangNhap;
 import com.sportbooking.userservice.ngoaile.LoiNghiepVu;
-import com.sportbooking.userservice.thucthe.TrangThaiNguoiDung;
-import com.sportbooking.userservice.thucthe.VaiTro;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -49,12 +47,12 @@ public class KiemThuXacThuc {
     void testDangNhapThanhCong() {
         MockHttpServletResponse res = new MockHttpServletResponse();
         YeuCauDangNhap req = new YeuCauDangNhap();
-        req.setEmail("customer@esportking.vn");
-        req.setPassword("Customer@123");
+        req.setEmail("customer");
+        req.setPassword("customer123");
 
         TraVeNguoiDung user = dichVuNguoiDung.dangNhap(req, res);
         assertNotNull(user);
-        assertEquals("customer@esportking.vn", user.getEmail());
+        assertEquals("customer", user.getEmail());
 
         // Kiem tra da set cookie access_token HttpOnly
         assertNotNull(res.getCookie("access_token"));
@@ -67,7 +65,7 @@ public class KiemThuXacThuc {
     void testDangNhapSaiMatKhau() {
         MockHttpServletResponse res = new MockHttpServletResponse();
         YeuCauDangNhap req = new YeuCauDangNhap();
-        req.setEmail("customer@esportking.vn");
+        req.setEmail("customer");
         req.setPassword("SaiMatKhauRoi");
 
         LoiNghiepVu ex = assertThrows(LoiNghiepVu.class, () -> {

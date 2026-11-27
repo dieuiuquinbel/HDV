@@ -38,7 +38,6 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -61,7 +60,11 @@ public class DichVuNguoiDung {
     @Value("${app.otp.expose-in-response:false}")
     private boolean exposeOtpInResponse;
 
+    private static final int OTP_RESEND_COOLDOWN_SECONDS = 10;
+    private static final int MAX_OTP_RESEND_ATTEMPTS = 3;
+
     private final Map<String, Integer> failedAttemptsByEmail = new ConcurrentHashMap<>();
+    private final Map<String, Integer> resendCountByEmail = new ConcurrentHashMap<>();
 
     @Transactional
     public TraVeDangKyOtp dangKy(YeuCauDangKy yeuCau) {
@@ -95,18 +98,13 @@ public class DichVuNguoiDung {
                 .build();
         khoMaOtp.save(otpEntity);
 
-        // Tu dong gui ma OTP qua email nguoi dung (neu da cau hinh SMTP)
-        boolean emailSent = dichVuEmailOtp.guiMaOtp(user.getEmail(), user.getFullName(), maOtpMoi);
+        // Gui ma OTP bat dong bo (@Async) de API phan hoi tuc thi (<100ms), khong phai cho SMTP 3-4s
+        dichVuEmailOtp.guiMaOtpAsync(user.getEmail(), user.getFullName(), maOtpMoi);
         String traVeOtp = exposeOtpInResponse ? maOtpMoi : null;
 
-        String message;
-        if (emailSent) {
-            message = "Đăng ký thành công! Mã xác minh OTP đã được gửi tới email của bạn.";
-        } else if (exposeOtpInResponse) {
-            message = "Đăng ký thành công! Vui lòng xác minh mã OTP để kích hoạt tài khoản.";
-        } else {
-            message = "Đăng ký thành công! Hệ thống đang gửi mã xác minh đến email của bạn.";
-        }
+        String message = dichVuEmailOtp.daCauHinhSmtp()
+                ? "Đăng ký thành công! Mã xác minh OTP đang được gửi tới email của bạn."
+                : "Đăng ký thành công! Vui lòng xác minh mã OTP để kích hoạt tài khoản.";
 
         return TraVeDangKyOtp.builder()
                 .id(user.getId())
@@ -152,6 +150,7 @@ public class DichVuNguoiDung {
         }
 
         failedAttemptsByEmail.remove(email);
+        resendCountByEmail.remove(email);
         otp.setVerified(true);
         khoMaOtp.save(otp);
 
@@ -171,20 +170,28 @@ public class DichVuNguoiDung {
             throw new LoiNghiepVu(HttpStatus.CONFLICT, "ACCOUNT_NOT_PENDING", "Tài khoản hiện không ở trạng thái chờ gửi lại OTP.");
         }
 
-        // Kiem tra cooldown: toi thieu 60 giay giua 2 lan yeu cau OTP
+        // Chong tan cong spam OTP: toi da 3 lan gui lai
+        int daGuiLai = resendCountByEmail.getOrDefault(email, 0);
+        if (daGuiLai >= MAX_OTP_RESEND_ATTEMPTS) {
+            throw new LoiNghiepVu(HttpStatus.TOO_MANY_REQUESTS, "OTP_RESEND_LIMIT_EXCEEDED",
+                    "Bạn đã vượt quá giới hạn gửi lại tối đa " + MAX_OTP_RESEND_ATTEMPTS + " lần. Vui lòng kiểm tra hộp thư (kể cả mục Spam) hoặc thử lại sau.");
+        }
+
+        // Kiem tra cooldown: toi thieu 10 giay giua 2 lan yeu cau OTP
         Optional<MaOtp> otpGanNhat = khoMaOtp.findTopByEmailOrderByIdDesc(email);
         if (otpGanNhat.isPresent()) {
             Instant createdAt = otpGanNhat.get().getCreatedAt();
-            if (createdAt != null && Instant.now().isBefore(createdAt.plusSeconds(60))) {
-                long remainingSeconds = Duration.between(Instant.now(), createdAt.plusSeconds(60)).getSeconds();
+            if (createdAt != null && Instant.now().isBefore(createdAt.plusSeconds(OTP_RESEND_COOLDOWN_SECONDS))) {
+                long remainingSeconds = Duration.between(Instant.now(), createdAt.plusSeconds(OTP_RESEND_COOLDOWN_SECONDS)).getSeconds();
                 throw new LoiNghiepVu(HttpStatus.TOO_MANY_REQUESTS, "OTP_COOLDOWN",
                         "Vui lòng đợi " + Math.max(1, remainingSeconds) + " giây trước khi yêu cầu mã OTP mới.");
             }
         }
 
-        // Vo hieu hoa cac ma OTP cu chua xac minh
+        // Vo hieu hoa cac ma OTP cu chua xac minh va tang bo dem gui lai
         khoMaOtp.invalidateOldOtps(email);
         failedAttemptsByEmail.remove(email);
+        resendCountByEmail.put(email, daGuiLai + 1);
 
         java.security.SecureRandom secureRandom = new java.security.SecureRandom();
         String maOtpMoi = String.format("%06d", secureRandom.nextInt(1000000));
@@ -196,18 +203,13 @@ public class DichVuNguoiDung {
                 .build();
         khoMaOtp.save(otpEntity);
 
-        // Tu dong gui ma OTP qua email nguoi dung (neu da cau hinh SMTP)
-        boolean emailSent = dichVuEmailOtp.guiMaOtp(user.getEmail(), user.getFullName(), maOtpMoi);
+        // Gui ma OTP bat dong bo (@Async) de nut Gui lai phan hoi ngay lap tuc
+        dichVuEmailOtp.guiMaOtpAsync(user.getEmail(), user.getFullName(), maOtpMoi);
         String traVeOtp = exposeOtpInResponse ? maOtpMoi : null;
 
-        String message;
-        if (emailSent) {
-            message = "Mã OTP mới đã được gửi vào hòm thư email của bạn.";
-        } else if (exposeOtpInResponse) {
-            message = "Mã OTP mới đã được tạo thành công (hiệu lực 5 phút).";
-        } else {
-            message = "Yêu cầu đã được ghi nhận. Vui lòng kiểm tra hòm thư email của bạn.";
-        }
+        String message = dichVuEmailOtp.daCauHinhSmtp()
+                ? "Mã OTP mới đang được gửi vào hòm thư email của bạn."
+                : "Mã OTP mới đã được tạo thành công (hiệu lực 5 phút).";
 
         return TraVeDangKyOtp.builder()
                 .id(user.getId())
@@ -402,5 +404,16 @@ public class DichVuNguoiDung {
                 .filter(u -> u.getStatus() == TrangThaiNguoiDung.ACTIVE)
                 .map(NguoiDung::getTokenVersion)
                 .orElse(-1);
+    }
+
+    @Transactional(readOnly = true)
+    public Map<String, Object> layThongTinLienHe(Long id) {
+        NguoiDung user = khoNguoiDung.findById(id)
+                .orElseThrow(() -> new LoiNghiepVu(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "Không tìm thấy người dùng."));
+        return Map.of(
+                "userId", user.getId(),
+                "email", user.getEmail() != null ? user.getEmail() : "",
+                "fullName", user.getFullName() != null ? user.getFullName() : "Quý khách"
+        );
     }
 }

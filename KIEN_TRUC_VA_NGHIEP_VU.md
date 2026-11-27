@@ -1,7 +1,7 @@
 # ESportKing — Kiến Trúc Kỹ Thuật & Đặc Tả Nghiệp Vụ Toàn Diện
 > **Tài liệu Kỹ thuật Chuyên sâu dành cho Báo cáo Đồ án Kiến trúc Hướng Dịch vụ (SOA)**  
 > **Hệ thống:** ESportKing Smart Sport Booking Platform (Hà Nội, Việt Nam)  
-> **Cập nhật:** 11/2026 — Phiên bản chuẩn hóa 6 Microservices, Ví điện tử SportPay, Hoàn tiền 12h & Check-in QR động.
+> **Cập nhật:** 25/11/2026 — Phiên bản 2.1: 6 Microservices, Redis Token Cache, RabbitMQ Async Messaging, Trợ lý AI 2-trong-1, Dịch vụ phục vụ tại sân, Ví điện tử SportPay & Check-in QR động.
 
 ---
 
@@ -16,7 +16,8 @@
 8. [Luồng Nghiệp Vụ 6: Chính Sách Hủy Đơn & Hoàn Tiền Chuẩn Hóa Thực Tế (100% / 50% / 0%)](#8-luồng-nghiệp-vụ-6-chính-sách-hủy-đơn--hoàn-tiền-chuẩn-hóa-thực-tế-100--50--0)
 9. [Luồng Nghiệp Vụ 7: Hệ Thống Kho Voucher & Tự Động Chọn Mã Giảm Giá Tốt Nhất](#9-luồng-nghiệp-vụ-7-hệ-thống-kho-voucher--tự-động-chọn-mã-giảm-giá-tốt-nhất)
 10. [Luồng Nghiệp Vụ 8: Trạm Check-in Trực Ban & Vận Hành Ca Thi Đấu](#10-luồng-nghiệp-vụ-8-trạm-check-in-trực-ban--vận-hành-ca-thi-đấu)
-11. [Luồng Nghiệp Vụ 9: Hệ Thống Chuông Thông Báo In-App Thời Gian Thực](#11-luồng-nghiệp-vụ-9-hệ-thống-chuông-thông-báo-in-app-thời-gian-thực)
+11. [Luồng Nghiệp Vụ 9: Hệ Thống Chuông Thông Báo In-App & Hàng Đợi RabbitMQ](#11-luồng-nghiệp-vụ-9-hệ-thống-chuông-thông-báo-in-app--hàng-đợi-rabbitmq)
+12. [Luồng Nghiệp Vụ 10: Trợ Lý AI 2-Trong-1 (Gemini API) & Phục Vụ Tại Sân](#12-luồng-nghiệp-vụ-10-trợ-lý-ai-2-trong-1-gemini-api--phục-vụ-tại-sân)
 
 ---
 
@@ -26,13 +27,19 @@ Hệ thống được tổ chức thành **6 microservices độc lập**, áp d
 
 ```mermaid
 flowchart TD
-    UserClient["Web Browser (React 18 + Vite)"] -->|HTTP / REST (Port 8080)| Gateway["1. API Gateway (Port 8080)<br/><i>JWT Decode, CSRF Filter, Rate Limit</i>"]
+    UserClient["Web Browser (React 18 + Vite)"] -->|HTTP / REST (Port 8080)| Gateway["1. API Gateway (Port 8080)<br/><i>JWT Decode, CSRF Filter, Redis Cache</i>"]
     
+    Gateway -->|Token Revocation Cache| Redis[("Redis 7 (Port 6379)")]
     Gateway -->|HTTP Route /users| US["2. User Service (Port 8081)<br/><b>user_db</b>"]
     Gateway -->|HTTP Route /courts| CS["3. Court Service (Port 8082)<br/><b>court_db</b>"]
-    Gateway -->|HTTP Route /bookings| BS["4. Booking Service (Port 8083)<br/><b>booking_db</b>"]
+    Gateway -->|HTTP Route /bookings & /ai| BS["4. Booking Service (Port 8083)<br/><b>booking_db</b>"]
     Gateway -->|HTTP Route /payments| PS["5. Payment Service (Port 8084)<br/><b>payment_db</b>"]
     Gateway -->|HTTP Route /notifications| NS["6. Notification Service (Port 8085)<br/><b>notification_db</b>"]
+    
+    US -.->|Sync tokenVersion| Redis
+    BS -->|Async Events| MQ[("RabbitMQ 3.13 (Port 5672)")]
+    PS -->|Async Events| MQ
+    MQ -->|Consume Queue| NS
 ```
 
 ### Tại sao KHÔNG tách nhỏ hơn thành 7–8 service?
@@ -214,29 +221,29 @@ sequenceDiagram
 
 ---
 
-## 8. Luồng Nghiệp Vụ 6: Chính Sách Hủy Đơn & Hoàn Tiền Chuẩn Hóa Thực Tế (100% / 50% / 0%)
+## 8. Luồng Nghiệp Vụ 6: Chính Sách Hủy Đơn & Hoàn Tiền Chuẩn Hóa (100% / 80% / 50%)
 
-Chính sách hoàn tiền được xây dựng theo chuẩn mực kinh doanh sân bãi thể thao thực tế (Time-window Policy), phân bổ rủi ro công bằng giữa khách hàng và nhà vận hành cụm sân:
+Chính sách hoàn tiền được xây dựng theo chuẩn mực linh hoạt (Time-window Policy), phân bổ rủi ro công bằng giữa khách hàng và nhà vận hành cụm sân:
 
 ```mermaid
 flowchart TD
     CancelReq["Khách hàng yêu cầu HỦY ĐƠN (CONFIRMED)"] --> TimeCheck{"Khoảng cách từ Hiện tại<br/>đến Giờ bắt đầu thi đấu?"}
     
-    TimeCheck -->|Trước >= 24 giờ| Refund100["HOÀN 100% GIÁ TRỊ ĐƠN<br/>Đủ thời gian cho khách khác đặt lại<br/>Cộng tiền ngay vào Ví SportPay"]
-    TimeCheck -->|Từ 12 giờ đến 24 giờ| Refund50["HOÀN 50% GIÁ TRỊ ĐƠN<br/>Chia sẻ rủi ro giữa khách & chủ sân<br/>Cộng tiền ngay vào Ví SportPay"]
-    TimeCheck -->|Dưới 12 giờ hoặc No-show| Refund0["HOÀN 0% (HỦY SÁT GIỜ)<br/>Giữ 100% phí giữ chỗ theo quy chuẩn<br/>Không hoàn tiền"]
+    TimeCheck -->|Trước >= 12 giờ| Refund100["HOÀN 100% GIÁ TRỊ ĐƠN<br/>Đủ thời gian cho khách khác đặt lại<br/>Cộng tiền ngay vào Ví SportPay"]
+    TimeCheck -->|Từ 5 giờ đến dưới 12 giờ| Refund80["HOÀN 80% GIÁ TRỊ ĐƠN<br/>Hỗ trợ khách hủy linh hoạt<br/>Cộng tiền ngay vào Ví SportPay"]
+    TimeCheck -->|Dưới 5 giờ trước giờ chơi| Refund50["HOÀN 50% GIÁ TRỊ ĐƠN<br/>Chia sẻ rủi ro hủy sát giờ<br/>Cộng tiền ngay vào Ví SportPay"]
 
     Refund100 --> ReleaseSlot["Giải phóng khóa slot khung giờ<br/>Khách khác có thể đặt ngay"]
+    Refund80 --> ReleaseSlot
     Refund50 --> ReleaseSlot
-    Refund0 --> ReleaseSlot
-    ReleaseSlot --> Notify["Gửi thông báo cập nhật vào Chuông In-App"]
+    ReleaseSlot --> Notify["Gửi thông báo chuông In-App & Email"]
 ```
 
 ### Đặc điểm nổi bật:
 * **Tính toán minh bạch trên giao diện:** Trước khi khách bấm xác nhận hủy tại `TrangVeCuaToi.jsx`, hệ thống tự tính khoảng cách thời gian và thông báo rõ:
-  * Trước $\ge 24$h: Hoàn 100% vào Ví SportPay.
-  * Từ 12h đến 24h: Hoàn 50% vào Ví SportPay.
-  * Dưới 12h: Hoàn 0% do sát giờ thi đấu.
+  * Trước $\ge 12$h: Hoàn **100%** vào Ví SportPay.
+  * Từ 5h đến dưới 12h: Hoàn **80%** vào Ví SportPay.
+  * Dưới 5h trước giờ chơi: Hoàn **50%** vào Ví SportPay.
 * **Hoàn tiền trong 1 giây:** Tiền hoàn nạp trực tiếp vào Ví SportPay, dùng để thanh toán các đơn tiếp theo hoặc có thể rút về tài khoản ngân hàng bất kỳ lúc nào.
 
 ---
@@ -299,15 +306,32 @@ sequenceDiagram
 
 ---
 
-## 11. Luồng Nghiệp Vụ 9: Hệ Thống Chuông Thông Báo In-App Thời Gian Thực
+## 11. Luồng Nghiệp Vụ 9: Hệ Thống Chuông Thông Báo In-App & Hàng Đợi RabbitMQ
 
-* **Cơ chế Đồng bộ & Lưu vết:**  
-  Mỗi sự kiện nghiệp vụ (`Tạo đơn`, `Thanh toán`, `Hủy hoàn tiền`, `Rút tiền ví`, `Check-in thành công`) đều phát sinh một thông báo được lưu trữ bền vững vào bảng `notifications` của `notification-service`.
+* **Giao tiếp Bất đồng bộ qua RabbitMQ (Event-Driven Architecture):**  
+  Khi phát sinh sự kiện nghiệp vụ (`Tạo đơn`, `Thanh toán`, `Hủy hoàn tiền`, `Rút tiền ví`, `Check-in thành công`, `Yêu cầu phục vụ tại sân`), `booking-service` và `payment-service` đẩy message JSON vào hàng đợi **RabbitMQ**. `notification-service` (`NguoiLangNgheThongBao.java`) lắng nghe bất đồng bộ để ghi vào `notification_db` (có cơ chế chống trùng theo `event_id` và tự động fallback gọi REST nội bộ nếu chạy local không bật RabbitMQ).
 * **Sửa dứt điểm lỗi `isRead` vs `read`:**  
   DTO `TraVeThongBao.java` xuất bản song song cả `@JsonProperty("isRead")` và `@JsonProperty("read")`. Phía Frontend kiểm tra `n.isRead !== undefined ? !n.isRead : !n.read`, đảm bảo thông báo đã đọc sẽ không bị sáng đỏ lại khi tải lại trang hoặc mở trình duyệt mới.
 * **Đọc tất cả 1-Chạm:**  
   Nút "Đọc Tất Cả" gọi trực tiếp API `PATCH /notifications/read-all`, thực thi câu lệnh SQL tối ưu cập nhật toàn bộ thông báo chưa đọc của user sang `is_read = true` trong database.
-* **Bộ lọc Tab thông minh:**  
+* **Bộ lọc Tab & Gắn nhãn Cơ sở:**  
   * **Tất cả:** Toàn bộ thông báo.
-  * **Lịch đặt sân:** Gom nhóm các sự kiện `BOOKING_CREATED`, `PAYMENT_SUCCESS`, `BOOKING_REFUNDED`, `CHECKIN_SUCCESS`, `BOOKING_COMPLETED`.
+  * **Lịch đặt sân:** Gom nhóm các sự kiện `BOOKING_CREATED`, `PAYMENT_SUCCESS`, `BOOKING_REFUNDED`, `CHECKIN_SUCCESS`, `BOOKING_COMPLETED`, `SERVICE_REQUEST` (kèm nhãn cơ sở Cầu Giấy / Đống Đa / Hà Đông cho Staff/Admin).
   * **Ưu đãi:** Thông báo khuyến mãi voucher giờ vàng.
+
+---
+
+## 12. Luồng Nghiệp Vụ 10: Trợ Lý AI 2-Trong-1 (Gemini API) & Phục Vụ Tại Sân
+
+### 12.1. Trợ Lý AI ESportKing (`DichVuTroLyAi.java` & `NutGoiDichVuFAB.jsx`)
+* **Kiến trúc Hybrid (FAQ Tức thì + Gemini LLM):**
+  * Các câu hỏi thường gặp về giá sân, giờ mở cửa, chính sách hủy/hoàn tiền, địa chỉ 3 cơ sở được giải đáp tức thì ở phía Client (0ms, không tốn quota API).
+  * Các câu hỏi tư vấn tự do được gửi qua `POST /api/v1/bookings/ai/chat` tới `booking-service`, sử dụng mô hình **Gemini** (model chính `gemini-3.8-flash`, tự động fallback sang `gemini-3.6-flash` khi quá tải).
+* **Bảo mật AI (Guardrails & Output Filtering):**
+  * Chặn các mẫu tấn công **Prompt Injection / SQL Injection** trước khi gửi lên LLM.
+  * Bộ lọc đầu ra tự động che giấu (mask) các chuỗi có dạng khóa bí mật/API key (`AIza...`, `AQ....`) nếu vô tình xuất hiện.
+* **Giao diện Widget 2-trong-1:** Nút tròn linh vật mèo (`ai-mascot.webp`, 72×72px) có thể kéo thả (draggable) và thu gọn/đóng linh hoạt.
+
+### 12.2. Yêu Cầu Phục Vụ Tại Sân (`DieuKhienYeuCauDichVu.java`)
+* Khách đang trong ca thi đấu có thể gọi nước uống, cầu/bóng, thuê vợt hoặc hỗ trợ kỹ thuật ngay từ Widget nổi hoặc màn `TrangVeCuaToi.jsx`.
+* Yêu cầu được lưu bền vững vào bảng `service_requests` (`V5__add_service_requests_table.sql`), bắn thông báo trực tiếp tới nhân viên trực ban đúng cơ sở (`STAFF`) và Quản trị viên (`ADMIN`), đồng thời hiển thị trong tab **Yêu cầu phục vụ tại sân** tại `/checkin` để nhân viên xác nhận hoàn tất.

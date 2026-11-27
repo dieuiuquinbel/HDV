@@ -48,3 +48,4 @@ Thumbs.db
 # OS / Tools
 .mvn/wrapper/maven-wrapper.jar
 .github/modernize/
+tempCodeRunnerFile.*

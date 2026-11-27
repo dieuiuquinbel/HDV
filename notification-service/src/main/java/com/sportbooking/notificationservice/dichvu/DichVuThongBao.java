@@ -22,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class DichVuThongBao {
 
     private final KhoThongBao khoThongBao;
+    private final DichVuGuiEmail dichVuGuiEmail;
 
     @Transactional
     public TraVeThongBao taoThongBao(YeuCauTaoThongBao yeuCau) {
@@ -42,7 +43,10 @@ public class DichVuThongBao {
                 .build();
 
         tb = khoThongBao.save(tb);
-        log.info("[EMAIL & IN-APP NOTIFICATION] Da gui toi userId={}: {} - {}", tb.getUserId(), tb.getTitle(), tb.getMessage());
+        log.info("[IN-APP NOTIFICATION] Da luu thong bao toi userId={}: {} - {}", tb.getUserId(), tb.getTitle(), tb.getMessage());
+
+        // Kich hoat gui Email HTML bat dong bo cho cac su kien quan trong (QR check-in, nhac lich 5h, check-in/out, hoan tien)
+        dichVuGuiEmail.guiEmailThongBaoAsync(yeuCau);
         return TraVeThongBao.tuThucThe(tb);
     }
 

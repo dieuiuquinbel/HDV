@@ -3,22 +3,34 @@
  * Muc dich: Thanh phan goc cua ung dung React quan ly Route va phien dang nhap toan cuc.
  * Chuc nang: Khoi tao CSRF cookie, kiem tra phien dang nhap va dieu huong cac trang theo phong cach DieuBel/SportBooking.
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { apiDichVu } from './dichvu/api';
 
 import ThanhDieuHuong from './thanhphan/ThanhDieuHuong';
-import TrangChu from './trang/TrangChu';
-import TrangTimSan from './trang/TrangTimSan';
-import TrangChiTietSan from './trang/TrangChiTietSan';
-import TrangThanhToan from './trang/TrangThanhToan';
-import TrangVeCuaToi from './trang/TrangVeCuaToi';
-import TrangDangNhapDangKy from './trang/TrangDangNhapDangKy';
-import TrangHoSoCaNhan from './trang/TrangHoSoCaNhan';
-import TrangQuetCheckIn from './trang/TrangQuetCheckIn';
-import TrangQuanLySanChu from './trang/TrangQuanLySanChu';
-import TrangQuanTriAdmin from './trang/TrangQuanTriAdmin';
-import NutGoiDichVuFAB from './thanhphan/NutGoiDichVuFAB';
+import ToastThongBao from './thanhphan/ToastThongBao';
+
+const TrangChu = lazy(() => import('./trang/TrangChu'));
+const TrangTimSan = lazy(() => import('./trang/TrangTimSan'));
+const TrangChiTietSan = lazy(() => import('./trang/TrangChiTietSan'));
+const TrangThanhToan = lazy(() => import('./trang/TrangThanhToan'));
+const TrangVeCuaToi = lazy(() => import('./trang/TrangVeCuaToi'));
+const TrangDangNhapDangKy = lazy(() => import('./trang/TrangDangNhapDangKy'));
+const TrangHoSoCaNhan = lazy(() => import('./trang/TrangHoSoCaNhan'));
+const TrangQuetCheckIn = lazy(() => import('./trang/TrangQuetCheckIn'));
+const TrangQuanTriAdmin = lazy(() => import('./trang/TrangQuanTriAdmin'));
+const NutGoiDichVuFAB = lazy(() => import('./thanhphan/NutGoiDichVuFAB'));
+
+function ManHinhDangTai() {
+  return (
+    <div className="min-h-[60vh] flex items-center justify-center text-slate-400 font-semibold text-xs">
+      <div className="flex flex-col items-center gap-2.5">
+        <div className="w-8 h-8 border-3 border-brand-200 border-t-brand-600 rounded-full animate-spin" />
+        <span>Đang tải trang...</span>
+      </div>
+    </div>
+  );
+}
 
 export default function App() {
   const [nguoiDung, setNguoiDung] = useState(() => {
@@ -92,9 +104,11 @@ export default function App() {
     <BrowserRouter>
       <div className="min-h-screen flex flex-col bg-[#fbf7f5] text-[#241f21]">
         <ThanhDieuHuong user={nguoiDung} onDangXuat={xuLyDangXuat} />
+        <ToastThongBao />
 
         <main className="flex-1">
-          <Routes>
+          <Suspense fallback={<ManHinhDangTai />}>
+            <Routes>
             {/* Trang chu & Tim san */}
             <Route path="/" element={<TrangChu user={nguoiDung} />} />
             <Route path="/tim-san" element={<TrangTimSan user={nguoiDung} />} />
@@ -125,53 +139,37 @@ export default function App() {
             {/* Dashboard ca nhan (/me - Tab "Toi") */}
             <Route path="/me" element={<TrangHoSoCaNhan user={nguoiDung} onDangXuat={xuLyDangXuat} />} />
 
-            {/* Quet ma QR Check-in (chi STAFF / ADMIN / OWNER) */}
+            {/* Quet ma QR Check-in (chi STAFF / ADMIN) */}
             <Route
               path="/checkin"
               element={
-                ['STAFF', 'ADMIN', 'OWNER'].includes(nguoiDung?.role)
+                ['STAFF', 'ADMIN'].includes(nguoiDung?.role)
                   ? <TrangQuetCheckIn user={nguoiDung} />
                   : <Navigate to="/" replace />
               }
             />
 
-            {/* Quan tri Admin & Chu san */}
+            {/* Quan tri Admin (chuyen huong /owner, /quan-ly-san -> /admin) */}
             <Route
               path="/admin"
               element={
                 nguoiDung?.role === 'ADMIN'
-                  ? <TrangQuanTriAdmin nguoiDung={nguoiDung} />
+                  ? <TrangQuanTriAdmin nguoiDung={nguoiDung} onDangXuat={xuLyDangXuat} />
                   : <Navigate to="/" replace />
               }
             />
-            <Route
-              path="/quan-tri-admin"
-              element={
-                nguoiDung?.role === 'ADMIN'
-                  ? <TrangQuanTriAdmin nguoiDung={nguoiDung} />
-                  : <Navigate to="/" replace />
-              }
-            />
-            <Route
-              path="/owner"
-              element={
-                ['OWNER', 'ADMIN'].includes(nguoiDung?.role)
-                  ? <TrangQuanLySanChu nguoiDung={nguoiDung} />
-                  : <Navigate to="/" replace />
-              }
-            />
-            <Route
-              path="/quan-ly-san"
-              element={
-                ['OWNER', 'ADMIN'].includes(nguoiDung?.role)
-                  ? <TrangQuanLySanChu nguoiDung={nguoiDung} />
-                  : <Navigate to="/" replace />
-              }
-            />
-          </Routes>
+            <Route path="/quan-tri-admin" element={<Navigate to="/admin" replace />} />
+            <Route path="/owner" element={<Navigate to="/admin" replace />} />
+            <Route path="/quan-ly-san" element={<Navigate to="/admin" replace />} />
+            </Routes>
+          </Suspense>
         </main>
         {/* Nut noi Kiosk tiep te do an & nuoc uong FAB (chi hien thi cho khach hang) */}
-        {(!nguoiDung || nguoiDung.role === 'CUSTOMER') && <NutGoiDichVuFAB user={nguoiDung} />}
+        {(!nguoiDung || nguoiDung.role === 'CUSTOMER') && (
+          <Suspense fallback={null}>
+            <NutGoiDichVuFAB user={nguoiDung} />
+          </Suspense>
+        )}
       </div>
     </BrowserRouter>
   );

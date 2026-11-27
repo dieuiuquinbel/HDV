@@ -10,7 +10,6 @@
  */
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import QRCode from 'qrcode';
 import {
   Ticket,
   QrCode,
@@ -28,13 +27,14 @@ import {
   Sparkles,
   BellRing,
   Plus,
-  Minus,
-  Coffee,
-  ShoppingBag,
-  Check
+  Check,
+  Navigation
 } from 'lucide-react';
 import { apiDichVu } from '../dichvu/api';
-import { MENU_DICH_VU_TAI_SAN } from '../hangso/danhMucDichVu';
+import { layThongTinGoogleMapsCoSo } from '../hangso/coSoSportKing';
+import ModalHuyHoanTien from '../thanhphan/ModalHuyHoanTien';
+import ModalGoiDichVuSan from '../thanhphan/ModalGoiDichVuSan';
+import { taoAnhQr, phatChuongThongBao } from '../tienich/dinhDang';
 
 export default function TrangVeCuaToi({ user }) {
   const [danhSachDon, setDanhSachDon] = useState([]);
@@ -47,10 +47,11 @@ export default function TrangVeCuaToi({ user }) {
   const [vePhongTo, setVePhongTo] = useState(null);
   const [daCopyToken, setDaCopyToken] = useState(false);
 
-  // Modal Order Dich Vu tai san (dong bo qua Backend API da trinh duyet)
+  // Modal xac nhan huy ve & hoan tien
+  const [donDangHuy, setDonDangHuy] = useState(null);
+
+  // Modal goi do & dich vu tai san
   const [modalOrderDon, setModalOrderDon] = useState(null);
-  const [soLuongChon, setSoLuongChon] = useState({});
-  const [thongBaoOrder, setThongBaoOrder] = useState('');
   const [danhSachYeuCauDichVu, setDanhSachYeuCauDichVu] = useState([]);
 
   const taiYeuCauDichVuCuaToi = async () => {
@@ -72,58 +73,6 @@ export default function TrangVeCuaToi({ user }) {
 
   const moModalOrder = (don) => {
     setModalOrderDon(don);
-    setSoLuongChon({});
-    setThongBaoOrder('');
-  };
-
-  const thayDoiSoLuong = (monId, delta) => {
-    setSoLuongChon(prev => {
-      const cur = prev[monId] || 0;
-      const next = Math.max(0, cur + delta);
-      if (next === 0) {
-        const copy = { ...prev };
-        delete copy[monId];
-        return copy;
-      }
-      return { ...prev, [monId]: next };
-    });
-  };
-
-  const guiYeuCauDichVu = async () => {
-    if (!modalOrderDon) return;
-    const danhSachMon = Object.entries(soLuongChon)
-      .map(([id, sl]) => {
-        const item = MENU_DICH_VU_TAI_SAN.find(m => m.id === id);
-        return item ? { ...item, soLuong: sl } : null;
-      })
-      .filter(Boolean);
-
-    if (danhSachMon.length === 0) {
-      alert('Vui lòng chọn ít nhất 1 dịch vụ hoặc đồ uống để gửi yêu cầu.');
-      return;
-    }
-
-    const itemsStr = danhSachMon.map(m => `${m.soLuong} ${m.ten}`).join(' + ');
-    const tongTien = danhSachMon.reduce((sum, m) => sum + (m.gia * m.soLuong), 0);
-
-    try {
-      const res = await apiDichVu.taoYeuCauDichVuTaiSan(modalOrderDon.id, {
-        items: itemsStr,
-        totalAmount: tongTien,
-        customerName: user?.fullName || 'Khách Hàng',
-        venueId: modalOrderDon.venueId || 1
-      });
-      if (res.data) {
-        setDanhSachYeuCauDichVu(prev => [res.data, ...prev]);
-      }
-      setThongBaoOrder('Yêu cầu đã gửi thành công tới quầy trực ban! Nhân viên đang chuẩn bị mang ra sân cho bạn (Cam kết < 5 phút).');
-      setTimeout(() => {
-        setModalOrderDon(null);
-        setThongBaoOrder('');
-      }, 2200);
-    } catch (e) {
-      alert(e.response?.data?.message || 'Không thể gửi yêu cầu dịch vụ. Vui lòng đảm bảo bạn đã Check-in vào sân.');
-    }
   };
 
   // Tai du lieu don dat san (ngam = true se khong hien spinner to gay giat lag)
@@ -142,23 +91,7 @@ export default function TrangVeCuaToi({ user }) {
         });
 
         if (coVeVuaDoiTrangThai) {
-          try {
-            const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-            if (AudioContextClass) {
-              const ctx = new AudioContextClass();
-              const now = ctx.currentTime;
-              const osc = ctx.createOscillator();
-              const gain = ctx.createGain();
-              osc.type = 'sine';
-              osc.frequency.setValueAtTime(1046.5, now);
-              gain.gain.setValueAtTime(0.3, now);
-              gain.gain.exponentialRampToValueAtTime(0.001, now + 0.8);
-              osc.connect(gain);
-              gain.connect(ctx.destination);
-              osc.start(now);
-              osc.stop(now + 0.8);
-            }
-          } catch {}
+          phatChuongThongBao();
         }
         return ds;
       });
@@ -168,15 +101,7 @@ export default function TrangVeCuaToi({ user }) {
       for (const don of ds) {
         if (don.checkinToken) {
           try {
-            const url = await QRCode.toDataURL(don.checkinToken, {
-              width: 300,
-              margin: 1,
-              color: {
-                dark: '#0f172a',
-                light: '#ffffff',
-              },
-            });
-            qrMap[don.id] = url;
+            qrMap[don.id] = await taoAnhQr(don.checkinToken, 300, 1);
           } catch (e) {
             console.error('Loi tao QR cho don #' + don.id, e);
           }
@@ -219,73 +144,10 @@ export default function TrangVeCuaToi({ user }) {
     };
   }, []);
 
-  // Xu ly huy don & hoan tien theo chinh sach thoi gian (> 12h: 100%, < 12h: 80%)
-  const xuLyHuyDon = async (don) => {
+  // Mo popup xac nhan huy don & tinh hoan tien theo thoi gian thuc
+  const xuLyHuyDon = (don) => {
     if (!don) return;
-    const bookingId = don.id;
-    
-    // Tinh gio thi dau de thong bao ti le hoan tien minh bach
-    let tiLe = '100%';
-    let soTienHoan = don.totalAmount || 0;
-    let moTa = 'Hoàn 100% về Ví ESportKing';
-
-    if (don.bookingDate && don.startSlot) {
-      try {
-        const [gio, phut] = don.startSlot.split(':').map(Number);
-        const [nam, thang, ngay] = don.bookingDate.split('-').map(Number);
-        const gioBatDau = new Date(nam, thang - 1, ngay, gio, phut);
-        const now = new Date();
-        const diffHours = (gioBatDau - now) / (1000 * 60 * 60);
-
-        if (diffHours <= 0) {
-          alert('Giờ thi đấu đã bắt đầu, hệ thống không thể thực hiện hủy vé.');
-          return;
-        }
-
-        // Quy chuẩn thực tế (Time-window Policy):
-        // >= 24 giờ: Hoàn 100%
-        // 12 đến 24 giờ: Hoàn 50%
-        // Dưới 12 giờ: Hoàn 0%
-        if (diffHours >= 24) {
-          tiLe = '100%';
-          soTienHoan = don.totalAmount;
-          moTa = `Trước >= 24 giờ: Hoàn 100% (${soTienHoan.toLocaleString('vi-VN')} đ) vào Ví ESportKing`;
-        } else if (diffHours >= 12) {
-          tiLe = '50%';
-          soTienHoan = Math.round(don.totalAmount * 0.5);
-          moTa = `Từ 12 đến 24 giờ: Hoàn 50% (${soTienHoan.toLocaleString('vi-VN')} đ) vào Ví ESportKing (chia sẻ rủi ro giữa khách và chủ sân)`;
-        } else {
-          tiLe = '0%';
-          soTienHoan = 0;
-          moTa = `Dưới 12 giờ hoặc đã qua giờ bắt đầu (No-show): Hoàn 0% (không hỗ trợ hoàn tiền khi hủy sát giờ)`;
-        }
-      } catch (e) {}
-    }
-
-    const xacNhan = window.confirm(
-      `XÁC NHẬN HỦY VÉ #${bookingId}\n` +
-      `--------------------------------------\n` +
-      `Chính sách hoàn tiền: ${moTa}\n\n` +
-      `Bạn có chắc chắn muốn hủy đơn đặt sân này không?`
-    );
-
-    if (!xacNhan) return;
-
-    try {
-      const res = await apiDichVu.huyDonDat(bookingId);
-      const donMoi = res.data;
-      if (donMoi?.status === 'CANCELLED_REFUNDED') {
-        alert(`Hủy vé #${bookingId} thành công! Số tiền ${soTienHoan.toLocaleString('vi-VN')} đ (${tiLe}) đã được chuyển thẳng vào Ví ESportKing.`);
-      } else {
-        alert(`Hủy vé #${bookingId} thành công! Trạng thái đơn: ${donMoi?.status || 'Đã hủy'}.`);
-      }
-      taiDanhSachVe();
-      window.dispatchEvent(new Event('cap_nhat_ve'));
-      window.dispatchEvent(new Event('cap_nhat_so_du_vi'));
-      window.dispatchEvent(new Event('cap_nhat_thong_bao'));
-    } catch (err) {
-      alert(err.response?.data?.message || 'Không thể hủy vé');
-    }
+    setDonDangHuy(don);
   };
 
   // Copy token
@@ -526,7 +388,7 @@ export default function TrangVeCuaToi({ user }) {
                         {laDaHoanTat && (
                           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-black">
                             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                            ĐÃ HOÀN TẤT CA
+                            ĐÃ HOÀN TẤT QUY TRÌNH
                           </span>
                         )}
                         {laChoThanhToan && (
@@ -542,21 +404,38 @@ export default function TrangVeCuaToi({ user }) {
                         )}
                       </div>
 
-                      {/* Ten Co So & Dia Diem */}
-                      <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-start gap-3.5">
-                        <div className="w-10 h-10 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center shrink-0">
-                          <MapPin className="w-5 h-5" />
-                        </div>
-                        <div>
-                          <h4 className="text-sm font-black text-slate-900">
-                            {don.courtName ? `${don.courtName} • ` : `Sân Con #${don.courtId} • `}
-                            {don.venueName || 'Hệ Thống eSportKing'}
-                          </h4>
-                          <p className="text-xs text-slate-500 font-semibold mt-0.5">
-                            Cơ sở đạt chuẩn thi đấu FIFA/BWF, có mái vòm che mưa nắng & đèn chiếu sáng 500 Lux.
-                          </p>
-                        </div>
-                      </div>
+                      {/* Ten Co So & Dia Diem + Nut Chi Duong Google Maps */}
+                      {(() => {
+                        const infoMaps = layThongTinGoogleMapsCoSo(don.venueId, don.venueName);
+                        return (
+                          <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div className="flex items-start gap-3.5">
+                              <div className="w-10 h-10 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center shrink-0">
+                                <MapPin className="w-5 h-5" />
+                              </div>
+                              <div>
+                                <h4 className="text-sm font-black text-slate-900">
+                                  {don.courtName ? `${don.courtName} • ` : `Sân Con #${don.courtId} • `}
+                                  {don.venueName || 'Hệ Thống eSportKing'}
+                                </h4>
+                                <p className="text-xs text-slate-500 font-semibold mt-0.5">
+                                  {infoMaps.diaChi}
+                                </p>
+                              </div>
+                            </div>
+                            <a
+                              href={infoMaps.mapsUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-blue-50 text-blue-700 border border-blue-200 text-xs font-extrabold shadow-xs transition shrink-0"
+                              title="Mở Google Maps chỉ đường đến sân"
+                            >
+                              <Navigation className="w-3.5 h-3.5" />
+                              <span>Chỉ đường Google Maps</span>
+                            </a>
+                          </div>
+                        );
+                      })()}
 
                       {/* Thong tin thoi gian & so tien */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -647,7 +526,7 @@ export default function TrangVeCuaToi({ user }) {
                             <span className={`text-[10px] font-bold ${
                               laDaHoanTat ? 'text-emerald-700' : 'text-slate-400'
                             }`}>
-                              4. Hoàn Tất Ca
+                              4. Hoàn Tất Quy Trình
                             </span>
                           </div>
                         </div>
@@ -829,137 +708,43 @@ export default function TrangVeCuaToi({ user }) {
               <div>Số tiền: <span className="text-emerald-600 font-black">{Number(vePhongTo.totalAmount).toLocaleString('vi-VN')} {vePhongTo.currency}</span></div>
             </div>
 
-            {/* Copy token */}
-            <button
-              onClick={() => handleCopy(vePhongTo.checkinToken)}
-              className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2"
-            >
-              <Copy className="w-3.5 h-3.5" />
-              {daCopyToken ? 'Đã sao chép mã Token!' : 'Sao chép chuỗi mã Token'}
-            </button>
+            {/* Copy token & Chi duong Google Maps */}
+            <div className="space-y-2">
+              <button
+                onClick={() => handleCopy(vePhongTo.checkinToken)}
+                className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2"
+              >
+                <Copy className="w-3.5 h-3.5" />
+                {daCopyToken ? 'Đã sao chép mã Token!' : 'Sao chép chuỗi mã Token'}
+              </button>
+              <a
+                href={layThongTinGoogleMapsCoSo(vePhongTo.venueId, vePhongTo.venueName).mapsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black transition flex items-center justify-center gap-2 shadow-sm"
+              >
+                <Navigation className="w-3.5 h-3.5" />
+                Mở Google Maps Chỉ Đường
+              </a>
+            </div>
           </div>
         </div>
       )}
 
-      {/* MODAL GỌI DỊCH VỤ TẠI SÂN (LIVE DISPATCHER SLA < 5 PHÚT) */}
-      {modalOrderDon && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="bg-white rounded-[32px] p-6 sm:p-8 max-w-lg w-full shadow-2xl text-left space-y-5 relative animate-in fade-in zoom-in-95 duration-200 my-8">
-            {/* Nút đóng */}
-            <button
-              onClick={() => setModalOrderDon(null)}
-              className="absolute top-5 right-5 w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition"
-            >
-              <X className="w-4 h-4" />
-            </button>
+      {/* MODAL GỌI ĐỒ & DỊCH VỤ TẠI SÂN (2 TAB: ĐỒ ĂN & DỊCH VỤ) */}
+      <ModalGoiDichVuSan
+        don={modalOrderDon}
+        user={user}
+        onDong={() => setModalOrderDon(null)}
+        onGuiThanhCong={(ycMoi) => setDanhSachYeuCauDichVu((prev) => [ycMoi, ...prev])}
+      />
 
-            <div>
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 text-amber-700 text-xs font-black mb-2">
-                <BellRing className="w-3.5 h-3.5 text-amber-600" />
-                Dịch Vụ Tiếp Tế Tận Sân • Cam Kết Dưới 5 Phút
-              </div>
-              <h3 className="text-xl font-black text-slate-900">
-                Gọi Nước & Dịch Vụ Tại Sân
-              </h3>
-              <p className="text-xs text-slate-500 font-semibold mt-0.5">
-                Đơn hàng sẽ được nhân viên trạm trực ban tiếp nhận và mang ra trực tiếp tại <strong className="text-slate-800">Sân Con #{modalOrderDon.courtId}</strong>.
-              </p>
-            </div>
-
-            {thongBaoOrder && (
-              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-2xl text-xs font-bold text-emerald-800 flex items-center gap-2">
-                <Check className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>{thongBaoOrder}</span>
-              </div>
-            )}
-
-            {/* Danh sách Menu Dịch vụ */}
-            <div className="space-y-2.5 max-h-[340px] overflow-y-auto pr-1">
-              {MENU_DICH_VU_TAI_SAN.map((mon) => {
-                const sl = soLuongChon[mon.id] || 0;
-                return (
-                  <div
-                    key={mon.id}
-                    className={`p-3 rounded-2xl border transition flex items-center justify-between gap-3 ${
-                      sl > 0 ? 'bg-amber-50/40 border-amber-300' : 'bg-slate-50/70 border-slate-200'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-white border border-slate-200/80 flex items-center justify-center text-lg shadow-2xs">
-                        {mon.icon}
-                      </div>
-                      <div>
-                        <h4 className="text-xs font-black text-slate-900">{mon.ten}</h4>
-                        <p className="text-[11px] font-bold text-slate-500 mt-0.5">
-                          {mon.mienPhi ? (
-                            <span className="text-emerald-600 font-black">Miễn phí sơ cứu</span>
-                          ) : (
-                            `${mon.gia.toLocaleString('vi-VN')} đ / ${mon.donVi}`
-                          )}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Bộ tăng giảm số lượng */}
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => thayDoiSoLuong(mon.id, -1)}
-                        disabled={sl === 0}
-                        className={`w-7 h-7 rounded-lg flex items-center justify-center font-black transition ${
-                          sl > 0 ? 'bg-white text-slate-800 border border-slate-200 hover:bg-slate-100 shadow-2xs' : 'bg-slate-200/60 text-slate-400 cursor-not-allowed'
-                        }`}
-                      >
-                        <Minus className="w-3.5 h-3.5" />
-                      </button>
-                      <span className="w-6 text-center font-black text-xs text-slate-900">{sl}</span>
-                      <button
-                        type="button"
-                        onClick={() => thayDoiSoLuong(mon.id, 1)}
-                        className="w-7 h-7 rounded-lg bg-slate-900 hover:bg-slate-800 active:scale-95 text-white flex items-center justify-center font-black transition shadow-2xs"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Chi tiết tổng tiền & nút gửi */}
-            <div className="pt-3 border-t border-slate-100 space-y-3">
-              <div className="flex items-center justify-between text-xs font-bold text-slate-600">
-                <span>Tổng chi phí dịch vụ thêm:</span>
-                <span className="text-base font-black text-amber-600">
-                  {Object.entries(soLuongChon).reduce((sum, [id, sl]) => {
-                    const item = MENU_DICH_VU_TAI_SAN.find(m => m.id === id);
-                    return sum + (item ? item.gia * sl : 0);
-                  }, 0).toLocaleString('vi-VN')} đ
-                </span>
-              </div>
-
-              <div className="flex gap-2.5">
-                <button
-                  type="button"
-                  onClick={() => setModalOrderDon(null)}
-                  className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition cursor-pointer"
-                >
-                  Đóng
-                </button>
-                <button
-                  type="button"
-                  onClick={guiYeuCauDichVu}
-                  className="flex-[2] py-3 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 active:scale-95 text-white rounded-xl text-xs font-black shadow-lg shadow-amber-500/25 transition flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <ShoppingBag className="w-4 h-4" />
-                  Gửi Yêu Cầu Tới Bàn Trực Ban
-                </button>
-              </div>
-            </div>
-
-          </div>
-        </div>
-      )}
+      {/* MODAL XÁC NHẬN HỦY VÉ & HOÀN TIỀN CÓ ANIMATION */}
+      <ModalHuyHoanTien
+        don={donDangHuy}
+        onDong={() => setDonDangHuy(null)}
+        onHuyThanhCong={() => taiDanhSachVe(true)}
+      />
 
     </div>
   );

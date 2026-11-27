@@ -208,15 +208,26 @@ export const DICH_VU_THEO_MON = {
   ]
 };
 
-// 2. Menu rut gon tiep te tai san (Live Dispatcher SLA < 5 phut)
+// 2. Menu goi do & dich vu tai san (chia 2 nhom ro rang: DO_AN va DICH_VU)
 export const MENU_DICH_VU_TAI_SAN = [
-  { id: 'revive', ten: 'Chai Nước Điện Giải Revive Ướp Lạnh', gia: 25000, donVi: 'chai', icon: '⚡' },
-  { id: 'lavie', ten: 'Chai Nước Khoáng Lavie 500ml', gia: 10000, donVi: 'chai', icon: '💧' },
-  { id: 'redbull', ten: 'Lon Nước Tăng Lực RedBull Thái', gia: 20000, donVi: 'lon', icon: '🐂' },
-  { id: 'khan_lanh', ten: 'Khăn Lạnh Ướp Đá Hương Bạc Hà', gia: 5000, donVi: 'chiếc', icon: '🧊' },
-  { id: 'ao_bib', ten: 'Thuê Bộ 10 Áo Bib Phân Đội Thi Đấu', gia: 30000, donVi: 'bộ', icon: '🎽' },
-  { id: 'bong_fifa', ten: 'Thuê Quả Bóng Thi Đấu Chuẩn FIFA Pro', gia: 30000, donVi: 'quả', icon: '⚽' },
-  { id: 'xit_lanh', ten: 'Bình Xịt Lạnh Sơ Cứu Chấn Thương', gia: 0, donVi: 'lượt', mienPhi: true, icon: '🩹' }
+  // Nhom 1: Do an & Nuoc uong
+  { id: 'lavie', nhom: 'DO_AN', loaiPhu: 'NUOC', ten: 'Nước khoáng Lavie 500ml', gia: 10000, donVi: 'chai', iconKey: 'water' },
+  { id: 'sting', nhom: 'DO_AN', loaiPhu: 'NUOC', ten: 'Sting dâu', gia: 15000, donVi: 'chai', iconKey: 'soda' },
+  { id: 'revive', nhom: 'DO_AN', loaiPhu: 'NUOC', ten: 'Revive chanh muối', gia: 20000, donVi: 'chai', iconKey: 'energy' },
+  { id: 'redbull', nhom: 'DO_AN', loaiPhu: 'NUOC', ten: 'RedBull', gia: 20000, donVi: 'lon', iconKey: 'energy' },
+  { id: 'pocari', nhom: 'DO_AN', loaiPhu: 'NUOC', ten: 'Pocari Sweat 500ml', gia: 25000, donVi: 'chai', iconKey: 'water' },
+  { id: 'xucxich', nhom: 'DO_AN', loaiPhu: 'DO_AN', ten: 'Xúc xích nướng', gia: 15000, donVi: 'cái', iconKey: 'food' },
+  { id: 'snack', nhom: 'DO_AN', loaiPhu: 'DO_AN', ten: 'Snack khoai tây', gia: 18000, donVi: 'gói', iconKey: 'snack' },
+  { id: 'banhmi', nhom: 'DO_AN', loaiPhu: 'DO_AN', ten: 'Bánh mì xúc xích', gia: 25000, donVi: 'chiếc', iconKey: 'sandwich' },
+
+  // Nhom 2: Dich vu san
+  { id: 'khan_lanh', nhom: 'DICH_VU', ten: 'Khăn lạnh', gia: 5000, donVi: 'cái', iconKey: 'towel' },
+  { id: 'bang_keo', nhom: 'DICH_VU', ten: 'Băng keo cơ thể thao', gia: 25000, donVi: 'cuộn', iconKey: 'tape' },
+  { id: 'ao_bib', nhom: 'DICH_VU', ten: 'Thuê bộ áo bib (10 áo)', gia: 30000, donVi: 'bộ', iconKey: 'shirt' },
+  { id: 'bong_da', nhom: 'DICH_VU', ten: 'Thuê bóng đá số 5', gia: 30000, donVi: 'quả', iconKey: 'ball' },
+  { id: 'vot_cau_long', nhom: 'DICH_VU', ten: 'Thuê vợt cầu lông', gia: 35000, donVi: 'cây', iconKey: 'racket' },
+  { id: 'hop_cau', nhom: 'DICH_VU', ten: 'Hộp cầu lông (12 quả)', gia: 80000, donVi: 'hộp', iconKey: 'package' },
+  { id: 'so_cuu', nhom: 'DICH_VU', ten: 'Xịt lạnh & Sơ cứu chấn thương', gia: 0, donVi: 'lượt', mienPhi: true, iconKey: 'medical' }
 ];
 
 // 3. Danh muc Kiosk ban hang tu dong day du (Smart Vending Kiosk)

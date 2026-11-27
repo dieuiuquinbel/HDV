@@ -16,7 +16,6 @@ import {
   ShieldCheck, 
   QrCode, 
   CreditCard, 
-  ArrowRight,
   Sparkles,
   Copy,
   Check,

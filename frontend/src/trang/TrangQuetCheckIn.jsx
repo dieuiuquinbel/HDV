@@ -33,6 +33,7 @@ import {
   Lock
 } from 'lucide-react';
 import { apiDichVu } from '../dichvu/api';
+import { hienToast } from '../tienich/thongBao';
 
 const DANH_SACH_CO_SO = [
   { id: 1, name: 'Cơ Sở 1 (Cầu Giấy)', address: 'Số 18 Duy Tân, Dịch Vọng Hậu, Cầu Giấy', mapUrl: 'https://maps.google.com/?q=21.031300,105.783500' },
@@ -307,7 +308,7 @@ export default function TrangQuetCheckIn({ user }) {
         window.dispatchEvent(new Event('cap_nhat_ve'));
       } catch {}
     } catch (err) {
-      alert(err.response?.data?.message || 'Không thể cập nhật trả sân');
+      hienToast(err.response?.data?.message || 'Không thể cập nhật trả sân', 'error');
     }
   };
 
@@ -317,7 +318,7 @@ export default function TrangQuetCheckIn({ user }) {
       await apiDichVu.capNhatTrangThaiYeuCauDichVu(reqId, 'PREPARING');
       taiYeuCauDichVu();
     } catch (err) {
-      alert(err.response?.data?.message || 'Không thể cập nhật trạng thái yêu cầu.');
+      hienToast(err.response?.data?.message || 'Không thể cập nhật trạng thái yêu cầu.', 'error');
     }
   };
 
@@ -327,7 +328,7 @@ export default function TrangQuetCheckIn({ user }) {
       await apiDichVu.capNhatTrangThaiYeuCauDichVu(reqId, 'DELIVERED');
       taiYeuCauDichVu();
     } catch (err) {
-      alert(err.response?.data?.message || 'Không thể cập nhật trạng thái hoàn tất.');
+      hienToast(err.response?.data?.message || 'Không thể cập nhật trạng thái hoàn tất.', 'error');
     }
   };
 
@@ -804,6 +805,10 @@ export default function TrangQuetCheckIn({ user }) {
                             <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-slate-100 text-slate-600">
                               <CheckCircle className="w-3 h-3 text-slate-500" /> Đã Trả Sân
                             </span>
+                          ) : (don.status === 'CANCELLED' || don.status === 'CANCELLED_REFUNDED') ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-50 text-rose-700 border border-rose-200">
+                              Đã Hủy & Hoàn Tiền
+                            </span>
                           ) : isCheckedIn ? (
                             <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-blue-100 text-blue-800 border border-blue-200">
                               <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-ping" /> Đang Sử Dụng
@@ -825,7 +830,7 @@ export default function TrangQuetCheckIn({ user }) {
                                 type="button"
                                 onClick={() => xuLyTraSan(don.id)}
                                 className="px-3 py-1.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer shadow-sm shadow-brand-500/20"
-                                title="Khách trả sân, hoàn tất ca thi đấu"
+                                title="Xác nhận trả sân, hoàn tất quy trình"
                               >
                                 <Flag className="w-3 h-3" />
                                 <span>Trả Sân (Hoàn Tất)</span>
@@ -855,7 +860,7 @@ export default function TrangQuetCheckIn({ user }) {
                           )}
                           {isCompleted && (
                             <span className="text-slate-400 font-semibold text-[11px] italic">
-                              Đã hoàn tất ca
+                              Hoàn tất quy trình
                             </span>
                           )}
                           {isPending && (

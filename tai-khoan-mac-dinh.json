@@ -1,0 +1,57 @@
+[
+  {
+    "key": "admin",
+    "label": "👑 Chủ Chuỗi (Admin)",
+    "subLabel": "admin",
+    "email": "admin",
+    "legacyEmail": "admin@esportking.vn",
+    "password": "admin123",
+    "fullName": "Chủ Hệ Thống ESportKing",
+    "phone": "0900000001",
+    "role": "ADMIN"
+  },
+  {
+    "key": "staff1",
+    "label": "🏢 Staff CS1",
+    "subLabel": "Cầu Giấy",
+    "email": "staff1",
+    "legacyEmail": "staff_cs1@esportking.vn",
+    "password": "staff123",
+    "fullName": "Nhân Viên Quầy CS1 - Cầu Giấy",
+    "phone": "0900000011",
+    "role": "STAFF"
+  },
+  {
+    "key": "staff2",
+    "label": "🏢 Staff CS2",
+    "subLabel": "Đống Đa",
+    "email": "staff2",
+    "legacyEmail": "staff_cs2@esportking.vn",
+    "password": "staff123",
+    "fullName": "Nhân Viên Quầy CS2 - Đống Đa",
+    "phone": "0900000012",
+    "role": "STAFF"
+  },
+  {
+    "key": "staff3",
+    "label": "🏢 Staff CS3",
+    "subLabel": "Long Biên",
+    "email": "staff3",
+    "legacyEmail": "staff_cs3@esportking.vn",
+    "password": "staff123",
+    "fullName": "Nhân Viên Quầy CS3 - Long Biên",
+    "phone": "0900000013",
+    "role": "STAFF"
+  },
+  {
+    "key": "customer",
+    "label": "🏃 Khách Hàng",
+    "subLabel": "customer",
+    "email": "customer",
+    "legacyEmail": "customer@esportking.vn",
+    "password": "customer123",
+    "fullName": "Khách Hàng Nguyễn Văn A",
+    "phone": "0900000003",
+    "role": "CUSTOMER"
+  }
+]

@@ -116,6 +116,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    volumes:
+      - ./tai-khoan-mac-dinh.json:/app/tai-khoan-mac-dinh.json:ro
     networks:
       - sport-network
 
@@ -213,6 +215,11 @@ services:
       - SPRING_DATASOURCE_USERNAME=${MYSQL_USER:-sport_user}
       - SPRING_DATASOURCE_PASSWORD=${MYSQL_PASSWORD:-123456}
       - INTERNAL_API_KEY=${INTERNAL_API_KEY:-sport-internal-secret-key-2026-very-secure}
+      - USER_SERVICE_URL=http://user-service:8081
+      - SMTP_HOST=${SMTP_HOST:-smtp.gmail.com}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASS=${SMTP_PASS:-}
       - SPRING_RABBITMQ_HOST=rabbitmq
       - SPRING_RABBITMQ_PORT=5672
       - SPRING_RABBITMQ_USERNAME=${RABBITMQ_USER:-guest}
@@ -227,8 +234,8 @@ services:
 
   frontend:
     build:
-      context: ./frontend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./frontend/Dockerfile
     container_name: sport-frontend
     restart: on-failure
     ports:

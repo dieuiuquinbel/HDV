@@ -5,29 +5,22 @@
  */
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { motion as Motion, AnimatePresence } from 'framer-motion';
-import QRCode from 'qrcode';
 import { 
   User, 
   Trophy, 
-  CalendarDays, 
-  Ticket, 
-  Coins, 
-  CreditCard, 
   LogOut, 
   CheckCircle2, 
   QrCode, 
-  Clock, 
-  AlertCircle, 
   Copy, 
-  ExternalLink,
-  ChevronRight,
-  Shield,
-  Building2,
   X,
-  Heart
+  Navigation
 } from 'lucide-react';
 import { apiDichVu } from '../dichvu/api';
+import { layThongTinGoogleMapsCoSo } from '../hangso/coSoSportKing';
+import ModalHuyHoanTien from '../thanhphan/ModalHuyHoanTien';
+import { hienToast } from '../tienich/thongBao';
+import { taoAnhQr } from '../tienich/dinhDang';
+import { DANH_SACH_VOUCHERS_CHUAN } from '../hangso/danhSachVoucher';
 
 const MUC_THANH_BEN = [
   { id: 'profile', label: 'Tổng quan' },
@@ -36,18 +29,6 @@ const MUC_THANH_BEN = [
   { id: 'wallet', label: 'Kho voucher', coChamDo: true },
   { id: 'membership', label: 'Hạng thành viên' },
   { id: 'refunds', label: 'Hoàn tiền' },
-];
-
-// Danh sach voucher mac dinh he thong ESportKing
-const DANH_SACH_VOUCHERS_CHUAN = [
-  { code: 'CHAOBANMOI', description: 'Giảm 20% cho thành viên mới trong lần đặt sân đầu tiên', discountPercent: 20, maxDiscount: 50000, minOrderAmount: 100000, tag: 'HOT NHẤT', badgeBg: 'bg-rose-500 text-white' },
-  { code: 'THELUC2026', description: 'Giảm 15% tối đa 40k cho ngày thường (Thứ 2 - Thứ 5)', discountPercent: 15, maxDiscount: 40000, minOrderAmount: 100000, tag: 'NGÀY THƯỜNG', badgeBg: 'bg-amber-500 text-white' },
-  { code: 'CUOITUAN', description: 'Giảm 15% tối đa 80k cho đơn cuối tuần từ 150k', discountPercent: 15, maxDiscount: 80000, minOrderAmount: 150000, tag: 'CUỐI TUẦN', badgeBg: 'bg-emerald-500 text-white' },
-  { code: 'CUOITUANXU', description: 'Giảm ngay 25k cho đơn cuối tuần từ 150k', discountPercent: 0, discountAmount: 25000, minOrderAmount: 150000, tag: 'CUỐI TUẦN', badgeBg: 'bg-emerald-500 text-white' },
-  { code: 'VIPSPORT', description: 'Giảm ngay 30k cho khách hàng thân thiết đơn từ 200k', discountPercent: 0, discountAmount: 30000, minOrderAmount: 200000, tag: 'ĐƠN LỚN', badgeBg: 'bg-purple-500 text-white' },
-  { code: 'PICKLE50', description: 'Giảm 10% tối đa 35k cho sân thể thao', discountPercent: 10, maxDiscount: 35000, minOrderAmount: 100000, tag: 'HOT TREND', badgeBg: 'bg-blue-500 text-white' },
-  { code: 'TRIAN2026', description: 'Giảm ngay 20k tri ân khách hàng rèn luyện sức khỏe', discountPercent: 0, discountAmount: 20000, minOrderAmount: 100000, tag: 'TRI ÂN', badgeBg: 'bg-pink-500 text-white' },
-  { code: 'THETHAO50', description: 'Giảm ngay 50k cho đơn từ 200k', discountPercent: 0, discountAmount: 50000, minOrderAmount: 200000, tag: 'TIẾT KIỆM', badgeBg: 'bg-indigo-500 text-white' }
 ];
 
 export default function TrangHoSoCaNhan({ user, onDangXuat }) {
@@ -73,6 +54,7 @@ export default function TrangHoSoCaNhan({ user, onDangXuat }) {
   });
   const [boLocVoucher, setBoLocVoucher] = useState('ALL'); // 'ALL' hoac 'SAVED'
   const [sanYeuThichList, setSanYeuThichList] = useState([]);
+  const [donDangHuy, setDonDangHuy] = useState(null);
   const [dangTai, setDangTai] = useState(false);
 
   // QR Modal
@@ -141,37 +123,29 @@ export default function TrangHoSoCaNhan({ user, onDangXuat }) {
       return;
     }
     try {
-      const url = await QRCode.toDataURL(token, {
-        width: 280,
-        margin: 2,
-        color: {
-          dark: '#0f172a',
-          light: '#ffffff',
-        },
-      });
+      const url = await taoAnhQr(token, 280, 2);
       setAnhQrDataUrl(url);
     } catch (err) {
       console.error('Loi tao QR:', err);
     }
   };
 
-  // Huy don dat san
-  const xuLyHuyDon = async (bookingId) => {
-    if (!window.confirm('Bạn có chắc chắn muốn hủy đơn đặt sân này không? Tiền sẽ được hoàn lại tự động.')) return;
+  // Mo popup xac nhan huy don & hoan tien
+  const xuLyHuyDon = (don) => {
+    if (!don) return;
+    setDonDangHuy(don);
+  };
+
+  const taiLaiDanhSachDon = async () => {
     try {
-      await apiDichVu.huyDonDat(bookingId);
-      alert('Đã hủy đơn đặt sân thành công!');
-      // Tai lai danh sach
       const res = await apiDichVu.layDonDatCuaToi({ page: 0, size: 20 });
       setDanhSachDon(res.data?.content || []);
-    } catch (err) {
-      alert(err.response?.data?.message || 'Không thể hủy đơn đặt');
-    }
+    } catch {}
   };
 
   const copyMaVoucher = (code) => {
     navigator.clipboard.writeText(code);
-    alert(`Đã sao chép mã ưu đãi: ${code}`);
+    hienToast(`Đã sao chép mã ưu đãi: ${code}`, 'success');
   };
 
   if (!user) {
@@ -215,11 +189,6 @@ export default function TrangHoSoCaNhan({ user, onDangXuat }) {
             {user.role === 'ADMIN' && (
               <button onClick={() => navigate('/admin')} className="px-4 py-2 bg-slate-900 text-white text-xs font-bold rounded-full shadow hover:bg-slate-800 transition">
                 👑 Quản trị hệ thống
-              </button>
-            )}
-            {user.role === 'OWNER' && (
-              <button onClick={() => navigate('/owner')} className="px-4 py-2 bg-brand-600 text-white text-xs font-bold rounded-full shadow hover:bg-brand-700 transition">
-                🏟️ Quản lý cụm sân
               </button>
             )}
           </div>
@@ -481,7 +450,19 @@ export default function TrangHoSoCaNhan({ user, onDangXuat }) {
                           </p>
                         </div>
 
-                        <div className="flex items-center gap-2 w-full sm:w-auto">
+                        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                          {/* Nut Chi duong Google Maps */}
+                          <a
+                            href={layThongTinGoogleMapsCoSo(don.venueId, don.venueName).mapsUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition"
+                            title="Mở Google Maps chỉ đường đến sân"
+                          >
+                            <Navigation className="w-3.5 h-3.5" />
+                            Chỉ đường
+                          </a>
+
                           {/* Nut xem ma QR Check-in */}
                           <button
                             onClick={() => moModalQr(don)}
@@ -494,7 +475,7 @@ export default function TrangHoSoCaNhan({ user, onDangXuat }) {
                           {/* Nut huy don neu con han */}
                           {don.status === 'CONFIRMED' && (
                             <button
-                              onClick={() => xuLyHuyDon(don.id)}
+                              onClick={() => xuLyHuyDon(don)}
                               className="px-3 py-2 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-xl text-xs font-bold transition"
                             >
                               Hủy & Hoàn tiền
@@ -559,10 +540,12 @@ export default function TrangHoSoCaNhan({ user, onDangXuat }) {
                   <h3 className="text-lg font-black text-slate-900">Lịch Sử Hoàn Tiền</h3>
                   <p className="text-xs text-slate-400 font-semibold">Chính sách hoàn tiền tự động 100% khi hủy trước giờ thi đấu.</p>
                 </div>
-                <div className="p-6 bg-slate-50 border border-slate-200 rounded-2xl text-xs text-slate-600 leading-relaxed">
-                  <p className="font-bold text-slate-800 mb-1">Chính sách hoàn tiền ESportKing:</p>
-                  <p>• Hủy trước 6 tiếng: Hoàn 100% giá trị đơn đặt vào tài khoản gốc.</p>
-                  <p>• Tiền hoàn sẽ được xử lý trong vòng 1-3 ngày làm việc thông qua cổng thanh toán.</p>
+                <div className="p-6 bg-slate-50 border border-slate-200 rounded-2xl text-xs text-slate-600 leading-relaxed space-y-1">
+                  <p className="font-bold text-slate-800 mb-1">Chính sách hoàn tiền ESportKing (tự động vào Ví SportPay):</p>
+                  <p>• Hủy trước ≥ 12 giờ: <strong>Hoàn 100%</strong> giá trị đơn đặt.</p>
+                  <p>• Hủy từ 5 giờ đến dưới 12 giờ: <strong>Hoàn 80%</strong> giá trị đơn đặt.</p>
+                  <p>• Hủy dưới 5 giờ trước giờ chơi: <strong>Hoàn 50%</strong> giá trị đơn đặt.</p>
+                  <p>• Tiền hoàn được cộng tức thì vào Ví SportPay, có thể dùng đặt lại hoặc rút về ngân hàng.</p>
                 </div>
               </div>
             )}
@@ -643,6 +626,13 @@ export default function TrangHoSoCaNhan({ user, onDangXuat }) {
           </div>
         </div>
       )}
+
+      {/* MODAL XÁC NHẬN HỦY VÉ & HOÀN TIỀN CÓ ANIMATION */}
+      <ModalHuyHoanTien
+        don={donDangHuy}
+        onDong={() => setDonDangHuy(null)}
+        onHuyThanhCong={taiLaiDanhSachDon}
+      />
 
     </div>
   );

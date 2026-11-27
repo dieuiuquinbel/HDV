@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
+import java.util.HashMap;
 import java.util.Map;
 
 @Service
@@ -33,14 +34,34 @@ public class DichVuGoiThongBaoNoiBo {
     }
 
     public void guiThongBao(Long userId, String title, String content, String type, Long referenceId) {
+        guiThongBaoKemEmail(userId, title, content, type, referenceId, null, null, null, null, null, null);
+    }
+
+    public void guiThongBaoKemEmail(
+            Long userId,
+            String title,
+            String content,
+            String type,
+            Long referenceId,
+            String checkinToken,
+            String courtName,
+            String bookingTime,
+            String venueName,
+            String venueAddress,
+            String googleMapsUrl) {
         String eventId = "EVT-" + type + "-" + referenceId + "-" + userId;
-        Map<String, Object> body = Map.of(
-                "userId", userId,
-                "title", title,
-                "message", content,
-                "type", type,
-                "eventId", eventId
-        );
+        Map<String, Object> body = new HashMap<>();
+        body.put("userId", userId);
+        body.put("title", title);
+        body.put("message", content);
+        body.put("type", type);
+        body.put("eventId", eventId);
+        if (checkinToken != null) body.put("checkinToken", checkinToken);
+        if (courtName != null) body.put("courtName", courtName);
+        if (bookingTime != null) body.put("bookingTime", bookingTime);
+        if (venueName != null) body.put("venueName", venueName);
+        if (venueAddress != null) body.put("venueAddress", venueAddress);
+        if (googleMapsUrl != null) body.put("googleMapsUrl", googleMapsUrl);
 
         // 1. Uu tien gui bat dong bo qua RabbitMQ (Event-Driven)
         if (rabbitTemplate != null) {

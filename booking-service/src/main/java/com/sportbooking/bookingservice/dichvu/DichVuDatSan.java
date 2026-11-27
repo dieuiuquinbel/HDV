@@ -41,6 +41,7 @@ public class DichVuDatSan {
     private final DichVuGoiThanhToanNoiBo dichVuGoiThanhToanNoiBo;
     private final DichVuGoiThongBaoNoiBo dichVuGoiThongBaoNoiBo;
     private final DichVuKhaDung dichVuKhaDung;
+    private final DichVuTinhGiaVaKiemTraSan dichVuTinhGiaVaKiemTraSan;
     private final TransactionTemplate transactionTemplate;
 
     private static final ZoneId ZONE_VN = ZoneId.of("Asia/Ho_Chi_Minh");
@@ -362,48 +363,47 @@ public class DichVuDatSan {
                 throw new LoiNghiepVu(HttpStatus.CONFLICT, "BOOKING_ALREADY_STARTED", "Giờ thi đấu đã bắt đầu, không thể thực hiện hủy sân.");
             }
 
-            // Quy chuẩn thực tế (Time-window Policy):
-            // - Trước >= 24 giờ: Hoàn 100%
-            // - Từ 12 giờ đến 24 giờ: Hoàn 50%
-            // - Dưới 12 giờ hoặc đã qua giờ bắt đầu (No-show): Hoàn 0%
+            // Chinh sach hoan tien ESportKing:
+            // - Truoc >= 12 gio: Hoan 100%
+            // - Truoc 5 gio den duoi 12 gio: Hoan 80%
+            // - Duoi 5 gio (sat gio choi): Hoan 50%
             long minutesUntilStart = Duration.between(now, startInstant).toMinutes();
-            boolean hoan100 = minutesUntilStart >= 24 * 60;
-            boolean hoan50 = !hoan100 && minutesUntilStart >= 12 * 60;
+            BigDecimal tiLeHoan;
+            String moTaTiLe;
+            String lyDoHoan;
 
-            if (hoan100 || hoan50) {
-                BigDecimal tiLeHoan = hoan100 ? BigDecimal.ONE : new BigDecimal("0.50");
-                BigDecimal soTienHoan = booking.getTotalAmount().multiply(tiLeHoan).setScale(0, java.math.RoundingMode.HALF_UP);
-                String moTaTiLe = hoan100 ? "100%" : "50%";
-                String lyDoHoan = hoan100 ? "Hủy đơn trước >= 24 giờ (hoàn 100%)" : "Hủy đơn từ 12-24 giờ (hoàn 50%)";
-
-                booking.setStatus(TrangThaiDonDat.REFUND_PENDING);
-                booking = khoDonDatSan.save(booking);
-
-                // Goi sang payment service thuc hien refund vao Vi ESportKing
-                boolean hoanTienOk = dichVuGoiThanhToanNoiBo.yeuCauHoanTien(bookingId, soTienHoan, lyDoHoan);
-                if (hoanTienOk) {
-                    booking.setStatus(TrangThaiDonDat.CANCELLED_REFUNDED);
-                    String thongBaoMsg = String.format("Đơn đặt sân #%d đã được hủy thành công. Số tiền hoàn %s (%,d đ) đã được cộng thẳng vào Ví ESportKing của bạn.",
-                            bookingId, moTaTiLe, soTienHoan.longValue());
-                    dichVuGoiThongBaoNoiBo.guiThongBao(booking.getCustomerId(),
-                            "Hủy đơn đặt sân #" + bookingId + " & Hoàn tiền (" + moTaTiLe + ")",
-                            thongBaoMsg,
-                            "BOOKING_REFUNDED",
-                            bookingId);
-                } else {
-                    // Payment that bai -> giu o REFUND_PENDING de he thong doi soat/reconcile xu ly tiep
-                    log.error("Goi hoan tien payment that bai cho bookingId={}, giu REFUND_PENDING", bookingId);
-                }
+            if (minutesUntilStart >= 12 * 60) {
+                tiLeHoan = BigDecimal.ONE;
+                moTaTiLe = "100%";
+                lyDoHoan = "Hủy đơn trước >= 12 giờ (hoàn 100%)";
+            } else if (minutesUntilStart >= 5 * 60) {
+                tiLeHoan = new BigDecimal("0.80");
+                moTaTiLe = "80%";
+                lyDoHoan = "Hủy đơn từ 5 đến dưới 12 giờ (hoàn 80%)";
             } else {
-                // Duoi 12 gio: Hoan 0% (Huy sat gio - phi giu cho 100%)
-                booking.setStatus(TrangThaiDonDat.CANCELLED);
-                String thongBaoMsg = String.format("Đơn đặt sân #%d đã được hủy thành công. Do thời gian hủy dưới 12 giờ trước giờ thi đấu, đơn không đủ điều kiện hoàn tiền theo quy định.",
-                        bookingId);
+                tiLeHoan = new BigDecimal("0.50");
+                moTaTiLe = "50%";
+                lyDoHoan = "Hủy đơn dưới 5 giờ trước giờ chơi (hoàn 50%)";
+            }
+
+            BigDecimal soTienHoan = booking.getTotalAmount().multiply(tiLeHoan).setScale(0, java.math.RoundingMode.HALF_UP);
+            booking.setStatus(TrangThaiDonDat.REFUND_PENDING);
+            booking = khoDonDatSan.save(booking);
+
+            // Goi sang payment service thuc hien refund vao Vi ESportKing
+            boolean hoanTienOk = dichVuGoiThanhToanNoiBo.yeuCauHoanTien(bookingId, soTienHoan, lyDoHoan);
+            if (hoanTienOk) {
+                booking.setStatus(TrangThaiDonDat.CANCELLED_REFUNDED);
+                String thongBaoMsg = String.format("Đơn đặt sân #%d đã được hủy thành công. Số tiền hoàn %s (%,d đ) đã được cộng thẳng vào Ví SportPay của bạn.",
+                        bookingId, moTaTiLe, soTienHoan.longValue());
                 dichVuGoiThongBaoNoiBo.guiThongBao(booking.getCustomerId(),
-                        "Hủy đơn đặt sân #" + bookingId + " (Không hoàn tiền)",
+                        "Hủy đơn đặt sân #" + bookingId + " & Hoàn tiền (" + moTaTiLe + ")",
                         thongBaoMsg,
-                        "BOOKING_CANCELLED",
+                        "BOOKING_REFUNDED",
                         bookingId);
+            } else {
+                // Payment that bai -> giu o REFUND_PENDING de he thong doi soat/reconcile xu ly tiep
+                log.error("Goi hoan tien payment that bai cho bookingId={}, giu REFUND_PENDING", bookingId);
             }
         } else {
             booking.setStatus(TrangThaiDonDat.CANCELLED);
@@ -479,19 +479,37 @@ public class DichVuDatSan {
 
         if (Boolean.TRUE.equals(capNhatOk)) {
             log.info("Xac nhan thanh toan thanh cong cho don dat {} voi paymentId {}", bookingId, yeuCau.getPaymentId());
-            // Gui thong bao da xac nhan thanh toan cho khach hang
-            dichVuGoiThongBaoNoiBo.guiThongBao(booking.getCustomerId(),
+            TraVeCauHinhSanNoiBo config = null;
+            try {
+                config = dichVuGoiSanNoiBo.layCauHinhSan(booking.getCourtId(), booking.getBookingDate());
+            } catch (Exception ex) {
+                log.warn("Khong the lay cau hinh san cho thong bao bookingId={}: {}", bookingId, ex.getMessage());
+            }
+            Long venueId = (config != null && config.getVenueId() != null) ? config.getVenueId() : 1L;
+            String tenCoSo = com.sportbooking.bookingservice.cauhinh.ThongTinCoSoUtil.tenCoSo(venueId);
+            String diaChiCoSo = com.sportbooking.bookingservice.cauhinh.ThongTinCoSoUtil.diaChiCoSo(venueId);
+            String mapsUrl = com.sportbooking.bookingservice.cauhinh.ThongTinCoSoUtil.googleMapsUrl(venueId);
+            String tenSan = (config != null && config.getCourtName() != null) ? config.getCourtName() : ("Sân #" + booking.getCourtId());
+            String khungGio = booking.getBookingDate() + " • " + booking.getStartSlot() + " - " + booking.getEndSlot();
+            String checkinToken = com.sportbooking.bookingservice.baomat.CheckinSecurityUtil.taoMaCheckin(
+                    bookingId, booking.getCustomerId(), booking.getBookingDate());
+
+            // Gui thong bao in-app + Email HTML kem anh ma QR Check-in & link Google Maps cho khach hang
+            dichVuGoiThongBaoNoiBo.guiThongBaoKemEmail(
+                    booking.getCustomerId(),
                     "Thanh toán thành công đơn đặt #" + bookingId,
-                    "Đơn đặt sân ngày " + booking.getBookingDate() + " từ " + booking.getStartSlot() + " đến " + booking.getEndSlot() + " đã được xác nhận thanh toán thành công.",
+                    "Đơn đặt sân " + tenSan + " (" + khungGio + ") tại " + tenCoSo + " đã được xác nhận thanh toán thành công. Mã QR Check-in đã được đính kèm sẵn.",
                     "PAYMENT_SUCCESS",
-                    bookingId);
+                    bookingId,
+                    checkinToken,
+                    tenSan,
+                    khungGio,
+                    tenCoSo,
+                    diaChiCoSo,
+                    mapsUrl);
 
             // Gui thong bao cho Admin & Nhan vien truc quay co so tuong ung
             try {
-                var config = dichVuGoiSanNoiBo.layCauHinhSan(booking.getCourtId(), booking.getBookingDate());
-                Long venueId = (config != null && config.getVenueId() != null) ? config.getVenueId() : 1L;
-                String tenCoSo = tenCoSoTheoId(venueId);
-                String tenSan = (config != null && config.getCourtName() != null) ? config.getCourtName() : ("Sân #" + booking.getCourtId());
                 Long staffUserId = (venueId >= 1 && venueId <= 3) ? (venueId + 1) : 2L;
                 String staffTitle = "[" + tenCoSo + "] Đơn đặt sân mới #" + bookingId;
                 String staffMsg = "[" + tenCoSo + "] Đơn #" + bookingId + " tại " + tenSan + " (" + booking.getBookingDate() + " • " + booking.getStartSlot() + "-" + booking.getEndSlot() + ") đã thanh toán, sẵn sàng Check-in.";
@@ -504,14 +522,6 @@ public class DichVuDatSan {
             log.warn("Don dat {} khong con o trang thai PENDING_PAYMENT, bo qua xac nhan", bookingId);
             throw new LoiNghiepVu(HttpStatus.CONFLICT, "BOOKING_NOT_PAYABLE", "Đơn đặt sân không còn ở trạng thái chờ thanh toán.");
         }
-    }
-
-    private String tenCoSoTheoId(Long venueId) {
-        if (venueId == null) return "Cơ Sở 1 - Cầu Giấy";
-        if (venueId == 1L) return "Cơ Sở 1 - Cầu Giấy";
-        if (venueId == 2L) return "Cơ Sở 2 - Đống Đa";
-        if (venueId == 3L) return "Cơ Sở 3 - Hà Đông";
-        return "Cơ Sở #" + venueId;
     }
 
     @Transactional(readOnly = true)
@@ -594,70 +604,14 @@ public class DichVuDatSan {
     }
 
     public BigDecimal tinhTienGiamVoucher(MaUuDai v, BigDecimal tongTien) {
-        if (v == null || tongTien == null || tongTien.compareTo(BigDecimal.ZERO) <= 0) {
-            return BigDecimal.ZERO;
-        }
-        if (v.getMinOrderAmount() != null && tongTien.compareTo(v.getMinOrderAmount()) < 0) {
-            return BigDecimal.ZERO;
-        }
-        BigDecimal giamGia = BigDecimal.ZERO;
-        if (v.getDiscountPercent() != null && v.getDiscountPercent() > 0) {
-            BigDecimal phanTram = BigDecimal.valueOf(v.getDiscountPercent()).divide(BigDecimal.valueOf(100), 4, java.math.RoundingMode.HALF_UP);
-            giamGia = tongTien.multiply(phanTram).setScale(0, java.math.RoundingMode.HALF_UP);
-            if (v.getMaxDiscount() != null && v.getMaxDiscount().compareTo(BigDecimal.ZERO) > 0 && giamGia.compareTo(v.getMaxDiscount()) > 0) {
-                giamGia = v.getMaxDiscount();
-            }
-        } else if (v.getDiscountAmount() != null && v.getDiscountAmount().compareTo(BigDecimal.ZERO) > 0) {
-            giamGia = v.getDiscountAmount().min(tongTien);
-        }
-        return giamGia.min(tongTien);
+        return dichVuTinhGiaVaKiemTraSan.tinhTienGiamVoucher(v, tongTien);
     }
 
     public void kiemTraThoiLuongVaGioHoatDong(TraVeCauHinhSanNoiBo config, LocalDate bookingDate, LocalTime startSlot, int durationMinutes) {
-        if (startSlot == null || startSlot.getMinute() % 30 != 0 || startSlot.getSecond() != 0 || startSlot.getNano() != 0) {
-            throw new LoiNghiepVu(HttpStatus.BAD_REQUEST, "INVALID_START_TIME", "Giờ bắt đầu thuê sân phải theo mốc 30 phút (ví dụ: hh:00 hoặc hh:30).");
-        }
-
-        if (durationMinutes % 30 != 0) {
-            throw new LoiNghiepVu(HttpStatus.BAD_REQUEST, "INVALID_DURATION", "Thời lượng thuê sân phải là bội số của 30 phút.");
-        }
-
-        int minDuration = (config.getMinDurationMinutes() != null) ? config.getMinDurationMinutes() : 60;
-        int maxDuration = (config.getMaxDurationMinutes() != null) ? config.getMaxDurationMinutes() : 720;
-        if (durationMinutes < minDuration || durationMinutes > maxDuration) {
-            throw new LoiNghiepVu(HttpStatus.BAD_REQUEST, "DURATION_OUT_OF_RANGE",
-                    "Thời lượng thuê sân phải từ " + minDuration + " phút đến " + maxDuration + " phút.");
-        }
-
-        LocalTime open = config.getOpenTime();
-        LocalTime close = config.getCloseTime();
-        LocalDateTime endDateTime = LocalDateTime.of(bookingDate, startSlot).plusMinutes(durationMinutes);
-        if (!endDateTime.toLocalDate().equals(bookingDate)) {
-            throw new LoiNghiepVu(HttpStatus.UNPROCESSABLE_ENTITY, "BOOKING_TIME_INVALID", "Khung giờ đặt sân không được kéo dài sang ngày hôm sau.");
-        }
-        LocalTime endSlot = endDateTime.toLocalTime();
-
-        if (startSlot.isBefore(open) || endSlot.isAfter(close)) {
-            throw new LoiNghiepVu(HttpStatus.CONFLICT, "OUT_OF_OPERATING_HOURS", "Khung giờ thuê vượt quá thời gian mở cửa hoạt động của sân.");
-        }
+        dichVuTinhGiaVaKiemTraSan.kiemTraThoiLuongVaGioHoatDong(config, bookingDate, startSlot, durationMinutes);
     }
 
     private String tinhHashPayload(YeuCauDatSan req) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            int duration = (req.getDurationMinutes() != null && req.getDurationMinutes() > 0)
-                    ? req.getDurationMinutes()
-                    : (req.getSlotCount() != null ? req.getSlotCount() * 60 : 60);
-            String voucher = req.getVoucherCode() != null ? req.getVoucherCode().trim().toUpperCase() : "";
-            String data = req.getCourtId() + "_" + req.getBookingDate() + "_" + req.getStartSlot() + "_" + duration + "_" + voucher;
-            byte[] encoded = digest.digest(data.getBytes(StandardCharsets.UTF_8));
-            StringBuilder sb = new StringBuilder();
-            for (byte b : encoded) {
-                sb.append(String.format("%02x", b));
-            }
-            return sb.toString();
-        } catch (NoSuchAlgorithmException e) {
-            return String.valueOf(req.hashCode());
-        }
+        return dichVuTinhGiaVaKiemTraSan.tinhHashPayload(req);
     }
 }

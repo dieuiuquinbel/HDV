@@ -14,17 +14,11 @@ import {
   MapPin, 
   Calendar, 
   Clock, 
-  ShieldCheck, 
   ArrowRight, 
   Zap, 
-  Trophy, 
-  Phone, 
   Check, 
-  Users, 
   AlertCircle, 
   Tag, 
-  Flame, 
-  Layers, 
   ChevronLeft,
   ChevronRight, 
   Sparkles,
@@ -33,69 +27,17 @@ import {
 import { apiDichVu } from '../dichvu/api';
 import { THONG_TIN_CO_SO, BIEN_THE_SAN_CON, DAC_QUYEN_SAN } from '../hangso/coSoSportKing';
 import { DICH_VU_THEO_MON } from '../hangso/danhMucDichVu';
+import {
+  DANH_SACH_VOUCHERS_CHUAN as DANH_SACH_VOUCHERS_CHUYEN_SAN,
+  tinhTienGiamVoucherThucTe
+} from '../hangso/danhSachVoucher';
+import {
+  DANH_SACH_KHUNG_GIO,
+  layNgayTheoOffset,
+  kiemTraGioQuaKhu
+} from '../tienich/thoiGianSan';
 
-// Danh sach voucher mac dinh he thong ESportKing
-const DANH_SACH_VOUCHERS_CHUYEN_SAN = [
-  { code: 'CHAOBANMOI', discountPercent: 20, maxDiscount: 50000, minOrderAmount: 100000, desc: 'Giảm 20% cho thành viên mới (tối đa 50k)' },
-  { code: 'THELUC2026', discountPercent: 15, maxDiscount: 40000, minOrderAmount: 100000, desc: 'Giảm 15% tối đa 40k ngày thường' },
-  { code: 'CUOITUAN', discountPercent: 15, maxDiscount: 80000, minOrderAmount: 150000, desc: 'Giảm 15% tối đa 80k cuối tuần' },
-  { code: 'CUOITUANXU', discountPercent: 0, discountAmount: 25000, minOrderAmount: 150000, desc: 'Giảm ngay 25k cho đơn từ 150k' },
-  { code: 'VIPSPORT', discountPercent: 0, discountAmount: 30000, minOrderAmount: 200000, desc: 'Giảm ngay 30k cho khách thân thiết (đơn từ 200k)' },
-  { code: 'PICKLE50', discountPercent: 10, maxDiscount: 35000, minOrderAmount: 100000, desc: 'Giảm 10% tối đa 35k cho sân thể thao' },
-  { code: 'TRIAN2026', discountPercent: 0, discountAmount: 20000, minOrderAmount: 100000, desc: 'Giảm ngay 20k tri ân khách hàng (đơn từ 100k)' },
-  { code: 'THETHAO50', discountPercent: 0, discountAmount: 50000, minOrderAmount: 200000, desc: 'Giảm ngay 50.000đ cho đơn từ 200k' }
-];
-
-export const tinhTienGiamVoucherThucTe = (v, tongTien) => {
-  if (!v || !tongTien || tongTien <= 0) return 0;
-  if (v.minOrderAmount && tongTien < v.minOrderAmount) return 0;
-  if (v.discountPercent && Number(v.discountPercent) > 0) {
-    const giam = Math.round(tongTien * (Number(v.discountPercent) / 100));
-    return v.maxDiscount ? Math.min(giam, Number(v.maxDiscount)) : giam;
-  }
-  if (v.discountAmount && Number(v.discountAmount) > 0) {
-    return Math.min(Number(v.discountAmount), tongTien);
-  }
-  return 0;
-};
-
-// Hàm lấy ngày theo offset
-const layNgayTheoOffset = (offset = 0) => {
-  const d = new Date();
-  d.setDate(d.getDate() + offset);
-  const nam = d.getFullYear();
-  const thang = String(d.getMonth() + 1).padStart(2, '0');
-  const ngay = String(d.getDate()).padStart(2, '0');
-  return `${nam}-${thang}-${ngay}`;
-};
-
-// Danh sách khung giờ thể thao tiêu chuẩn
-const DANH_SACH_KHUNG_GIO = [
-  { value: '06:00:00', label: '06:00 (Sáng sớm - Thể dục)' },
-  { value: '07:00:00', label: '07:00 (Buổi sáng)' },
-  { value: '08:00:00', label: '08:00 (Buổi sáng)' },
-  { value: '09:00:00', label: '09:00 (Buổi sáng)' },
-  { value: '10:00:00', label: '10:00 (Buổi trưa)' },
-  { value: '14:00:00', label: '14:00 (Đầu giờ chiều)' },
-  { value: '15:00:00', label: '15:00 (Buổi chiều)' },
-  { value: '16:00:00', label: '16:00 (Chiều mát)' },
-  { value: '17:00:00', label: '17:00 (Chiều muộn 🔥)' },
-  { value: '18:00:00', label: '18:00 (Tối vàng 🔥 Hot nhất)' },
-  { value: '19:00:00', label: '19:00 (Tối vàng 🔥 Hot nhất)' },
-  { value: '20:00:00', label: '20:00 (Buổi tối)' },
-  { value: '21:00:00', label: '21:00 (Đêm muộn)' },
-];
-
-// Hàm kiểm tra khung giờ đã qua so với thời gian thực (ít nhất 15 phút)
-const kiemTraGioQuaKhu = (dateStr, timeStr) => {
-  const homNay = layNgayTheoOffset(0);
-  if (dateStr !== homNay) return false;
-  const now = new Date();
-  const [h, m] = timeStr.split(':').map(Number);
-  const slotDate = new Date();
-  slotDate.setHours(h, m, 0, 0);
-  return slotDate.getTime() - now.getTime() < 15 * 60 * 1000;
-};
+export { tinhTienGiamVoucherThucTe };
 
 export default function TrangChiTietSan({ user: propUser }) {
   const { id } = useParams(); // venueId (1, 2, hoặc 3)
@@ -946,7 +888,6 @@ export default function TrangChiTietSan({ user: propUser }) {
                   </span>
                   <span>Chọn Ngày & Thời Gian Thuê Sân</span>
                 </h2>
-                <p className="text-xs text-slate-400 ml-8 mt-0.5">Khóa slot thời gian thực, không lo trùng lịch</p>
               </div>
 
               {/* Chọn Ngày */}
@@ -995,12 +936,9 @@ export default function TrangChiTietSan({ user: propUser }) {
                       <Clock className="w-4 h-4 text-brand-600" />
                       <span>Chọn giờ bắt đầu thuê:</span>
                     </label>
-                    <div className="flex items-center gap-3 text-[10px] font-semibold">
-                      <span className="text-amber-700 bg-amber-50 border border-amber-200/80 px-2 py-0.5 rounded-full">
-                        🔥 17:00–21:00: Giờ vàng (Cao điểm + Đèn LED ban đêm)
-                      </span>
-                      <span className="text-slate-400">⬜ Mờ: Qua giờ / Kín lịch</span>
-                    </div>
+                    <p className="text-[11px] text-slate-400 font-medium">
+                      Mở cửa 06:00 – {gioDongCuaStr.slice(0, 5)} · Giờ cao điểm 17:00 – 21:00
+                    </p>
                   </div>
 
                   <div className="relative flex items-center gap-1.5 bg-slate-50/80 p-1.5 rounded-2xl border border-slate-200/80">
@@ -1151,11 +1089,6 @@ export default function TrangChiTietSan({ user: propUser }) {
                       );
                     })}
                   </div>
-                  {thoiLuongToiDaPhut < 720 && (
-                    <p className="text-[10px] text-slate-400 mt-1.5 text-right italic">
-                      ℹ️ Giờ đóng cửa: {gioDongCuaStr.slice(0, 5)} (Tối đa {Math.floor(thoiLuongToiDaPhut / 60)}h{thoiLuongToiDaPhut % 60 ? `${thoiLuongToiDaPhut % 60}p` : ''} từ {gioBatDauHienThi})
-                    </p>
-                  )}
                 </div>
               </div>
 
@@ -1354,7 +1287,7 @@ export default function TrangChiTietSan({ user: propUser }) {
               
               <div className="border-b border-slate-100 pb-3">
                 <span className="text-[10px] font-black text-brand-600 bg-brand-50 px-2 py-0.5 rounded-md uppercase tracking-wider">
-                  BẢNG TÍNH TIỀN REALTIME
+                  CHI TIẾT ĐẶT SÂN
                 </span>
                 <h3 className="text-base font-black text-slate-900 mt-1">
                   Tóm Tắt Đơn Đặt Sân
@@ -1612,7 +1545,7 @@ export default function TrangChiTietSan({ user: propUser }) {
               )}
 
               <div className="text-center text-[10px] text-slate-400 space-y-0.5">
-                <p>🔒 Khóa slot thời gian thực • Không bao giờ trùng sân</p>
+                <p>Giữ sân tự động trong 10 phút khi thanh toán</p>
                 <p>Hỗ trợ đổi/hủy lịch trước giờ thi đấu theo quy định</p>
               </div>
 

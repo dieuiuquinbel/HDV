@@ -11,6 +11,7 @@ export const THONG_TIN_CO_SO = {
     ten: 'CƠ SỞ 1 • CẦU GIẤY',
     tenDayDu: 'Trung Tâm Thể Thao eSportKing - Cơ Sở 1 (Cầu Giấy)',
     diaChi: 'Số 18 Phố Duy Tân, Phường Dịch Vọng Hậu, Quận Cầu Giấy, Hà Nội',
+    mapsUrl: 'https://www.google.com/maps/dir/?api=1&destination=18+Duy+Tan,+Dich+Vong+Hau,+Cau+Giay,+Ha+Noi',
     hotline: '0981.234.567',
     badgeClass: 'bg-gradient-to-r from-rose-600 to-red-500 text-white',
     icon: <Flame className="w-3.5 h-3.5 fill-white text-white" />
@@ -20,6 +21,7 @@ export const THONG_TIN_CO_SO = {
     ten: 'CƠ SỞ 2 • ĐỐNG ĐA',
     tenDayDu: 'Trung Tâm Thể Thao eSportKing - Cơ Sở 2 (Đống Đa)',
     diaChi: 'Số 102 Phố Trường Chinh, Phường Phương Mai, Quận Đống Đa, Hà Nội',
+    mapsUrl: 'https://www.google.com/maps/dir/?api=1&destination=102+Truong+Chinh,+Phuong+Mai,+Dong+Da,+Ha+Noi',
     hotline: '0982.345.678',
     badgeClass: 'bg-gradient-to-r from-amber-500 to-orange-500 text-white',
     icon: <Zap className="w-3.5 h-3.5 fill-white text-white" />
@@ -29,11 +31,30 @@ export const THONG_TIN_CO_SO = {
     ten: 'CƠ SỞ 3 • HÀ ĐÔNG',
     tenDayDu: 'Trung Tâm Thể Thao eSportKing - Cơ Sở 3 (Hà Đông)',
     diaChi: 'Số 27 Đường Quang Trung, Phường Quang Trung, Quận Hà Đông, Hà Nội',
+    mapsUrl: 'https://www.google.com/maps/dir/?api=1&destination=27+Quang+Trung,+Ha+Dong,+Ha+Noi',
     hotline: '0983.456.789',
     badgeClass: 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white',
     icon: <Trophy className="w-3.5 h-3.5 text-white" />
   }
 };
+
+export function layThongTinGoogleMapsCoSo(venueId, venueName = '') {
+  const numId = Number(venueId);
+  if (THONG_TIN_CO_SO[numId]) {
+    return {
+      diaChi: THONG_TIN_CO_SO[numId].diaChi,
+      mapsUrl: THONG_TIN_CO_SO[numId].mapsUrl
+    };
+  }
+  const lower = String(venueName || '').toLowerCase();
+  if (lower.includes('đống đa') || lower.includes('dong da') || lower.includes('cơ sở 2') || lower.includes('cs2')) {
+    return { diaChi: THONG_TIN_CO_SO[2].diaChi, mapsUrl: THONG_TIN_CO_SO[2].mapsUrl };
+  }
+  if (lower.includes('hà đông') || lower.includes('ha dong') || lower.includes('cơ sở 3') || lower.includes('cs3')) {
+    return { diaChi: THONG_TIN_CO_SO[3].diaChi, mapsUrl: THONG_TIN_CO_SO[3].mapsUrl };
+  }
+  return { diaChi: THONG_TIN_CO_SO[1].diaChi, mapsUrl: THONG_TIN_CO_SO[1].mapsUrl };
+}
 
 export const BIEN_THE_SAN_CON = {
   FOOTBALL: {

@@ -37,4 +37,16 @@ public class DieuKhienNoiBoNguoiDung {
         Integer phienToken = dichVuNguoiDung.layTokenVersion(id);
         return ResponseEntity.ok(Map.of("userId", id, "tokenVersion", phienToken));
     }
+
+    @GetMapping("/{id}/contact")
+    public ResponseEntity<Map<String, Object>> layThongTinLienHe(
+            @PathVariable Long id,
+            @RequestHeader(value = "X-Internal-Api-Key", required = false) String khoaGuiLen) {
+
+        if (khoaGuiLen == null || !khoaGuiLen.equals(khoaNoiBo)) {
+            throw new LoiNghiepVu(HttpStatus.FORBIDDEN, "FORBIDDEN", "Truy cap noi bo bi tu choi");
+        }
+
+        return ResponseEntity.ok(dichVuNguoiDung.layThongTinLienHe(id));
+    }
 }

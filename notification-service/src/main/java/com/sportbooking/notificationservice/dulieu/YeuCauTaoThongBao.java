@@ -24,4 +24,12 @@ public class YeuCauTaoThongBao {
     private String type;
 
     private String eventId;
+
+    // Thong tin bo sung de gui Email HTML dep (QR check-in, dia chi, link Google Maps)
+    private String checkinToken;
+    private String venueName;
+    private String venueAddress;
+    private String googleMapsUrl;
+    private String courtName;
+    private String bookingTime;
 }

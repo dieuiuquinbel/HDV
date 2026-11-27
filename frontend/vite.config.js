@@ -6,6 +6,22 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 5173,
-    host: true
+    host: true,
+    fs: {
+      allow: ['..']
+    }
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-motion': ['framer-motion'],
+          'vendor-icons': ['lucide-react'],
+          'vendor-qr': ['qrcode', 'jsqr'],
+          'vendor-http': ['axios']
+        }
+      }
+    }
   }
 })

@@ -9,12 +9,6 @@ import com.sportbooking.paymentservice.thucthe.DoiSoatThanhToan;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
-import java.time.Instant;
-import java.util.List;
-import java.util.Optional;
-
 @Repository
 public interface KhoDoiSoatThanhToan extends JpaRepository<DoiSoatThanhToan, Long> {
-    Optional<DoiSoatThanhToan> findByPaymentId(Long paymentId);
-    List<DoiSoatThanhToan> findByStatusAndNextRetryAtLessThan(String status, Instant now);
 }

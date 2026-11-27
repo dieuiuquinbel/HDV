@@ -11,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -25,6 +26,11 @@ public class DichVuEmailOtp {
 
     public boolean daCauHinhSmtp() {
         return mailSender != null && mailFrom != null && !mailFrom.isBlank();
+    }
+
+    @Async
+    public void guiMaOtpAsync(String toEmail, String hoTen, String otpCode) {
+        guiMaOtp(toEmail, hoTen, otpCode);
     }
 
     public boolean guiMaOtp(String toEmail, String hoTen, String otpCode) {
@@ -59,7 +65,7 @@ public class DichVuEmailOtp {
             html.append("<span style='font-size: 34px; font-weight: 900; color: #ff385c; letter-spacing: 6px;'>").append(otpCode).append("</span>");
             html.append("</div>");
             html.append("<p style='color: #d97706; font-size: 12px; font-weight: bold;'>Mã có hiệu lực trong vòng 5 phút.</p>");
-            html.append("<p style='color: #94a3b8; font-size: 11px; margin-top: 20px;'>Chuỗi 3 cơ sở ESportKing: Cơ Sở 1 (Cầu Giấy) • Cơ Sở 2 (Đống Đa) • Cơ Sở 3 (Long Biên)</p>");
+            html.append("<p style='color: #94a3b8; font-size: 11px; margin-top: 20px;'>Chuỗi 3 cơ sở ESportKing: Cơ Sở 1 (Cầu Giấy) • Cơ Sở 2 (Đống Đa) • Cơ Sở 3 (Hà Đông)</p>");
             html.append("</div>");
             html.append("</div></div></body></html>");
 
